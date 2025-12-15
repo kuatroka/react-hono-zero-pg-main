@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@rocicorp/zero/react';
+import { LatencyBadge } from '@/components/LatencyBadge';
+import { useLatencyMs } from '@/lib/latency';
 import { queries } from '@/zero/queries';
 
 export function SuperinvestorDetailPage({ onReady }: { onReady: () => void }) {
@@ -12,6 +14,13 @@ export function SuperinvestorDetailPage({ onReady }: { onReady: () => void }) {
   );
 
   const record = rows?.[0];
+
+  const detailReady = Boolean(record || result.type === 'complete');
+  const detailLatencyMs = useLatencyMs({
+    isReady: detailReady,
+    resetKey: `superinvestor:${cik ?? ''}`,
+    enabled: Boolean(cik),
+  });
 
   // Signal ready when data is available (from cache or server)
   useEffect(() => {
@@ -35,7 +44,10 @@ export function SuperinvestorDetailPage({ onReady }: { onReady: () => void }) {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">{record.cikName}</h1>
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-3xl font-bold">{record.cikName}</h1>
+          <LatencyBadge ms={detailLatencyMs} source="Zero: superinvestors.byCik" />
+        </div>
       </div>
       <div className="space-y-3 text-lg">
         <div><span className="font-semibold">CIK:</span> {record.cik}</div>

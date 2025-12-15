@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@rocicorp/zero/react';
+import { LatencyBadge } from '@/components/LatencyBadge';
+import { useLatencyMs } from '@/lib/latency';
 import { queries } from '@/zero/queries';
 import { InvestorActivityChart } from '@/components/charts/InvestorActivityChart';
 import { InvestorActivityUplotChart } from '@/components/charts/InvestorActivityUplotChart';
@@ -29,18 +31,33 @@ export function AssetDetailPage({ onReady }: { onReady: () => void }) {
   const result = hasCusip ? resultBySymbolAndCusip : resultBySymbol;
   const record = rows?.[0];
 
+  const assetReady = Boolean(record || result.type === 'complete');
+  const assetLatencyMs = useLatencyMs({
+    isReady: assetReady,
+    resetKey: hasCusip ? `asset:${code ?? ''}:${cusip ?? ''}` : `asset:${code ?? ''}`,
+  });
+  const assetSource = hasCusip ? 'Zero: assets.bySymbolAndCusip' : 'Zero: assets.bySymbol';
+
   // Query investor activity: prefer by cusip if available, otherwise by ticker
-  const [activityByCusip] = useQuery(
+  const [activityByCusip, activityByCusipResult] = useQuery(
     queries.investorActivityByCusip(cusip || ''),
     { enabled: Boolean(hasCusip) }
   );
 
-  const [activityByTicker] = useQuery(
+  const [activityByTicker, activityByTickerResult] = useQuery(
     queries.investorActivityByTicker(code || ''),
     { enabled: Boolean(code) && !hasCusip }
   );
 
   const activityRows = hasCusip ? (activityByCusip ?? []) : (activityByTicker ?? []);
+
+  const activityResult = hasCusip ? activityByCusipResult : activityByTickerResult;
+  const activityReady = Boolean(activityRows.length > 0 || activityResult.type === 'complete');
+  const activityLatencyMs = useLatencyMs({
+    isReady: activityReady,
+    resetKey: hasCusip ? `activity:${cusip ?? ''}` : `activity:${code ?? ''}`,
+  });
+  const activitySource = hasCusip ? 'Zero: investorActivity.byCusip' : 'Zero: investorActivity.byTicker';
 
   // Signal ready when data is available (from cache or server)
   useEffect(() => {
@@ -65,7 +82,10 @@ export function AssetDetailPage({ onReady }: { onReady: () => void }) {
     <>
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold">{record.assetName}</h1>
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-3xl font-bold">{record.assetName}</h1>
+            <LatencyBadge ms={assetLatencyMs} source={assetSource} />
+          </div>
         </div>
         <div className="space-y-3 text-lg">
           <div><span className="font-semibold">Symbol:</span> {record.asset}</div>
@@ -80,10 +100,10 @@ export function AssetDetailPage({ onReady }: { onReady: () => void }) {
 
       {/* Full-width chart section */}
       <div className="mt-8 space-y-10 w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] px-4 sm:px-6 lg:px-8">
-        <InvestorActivityChart data={activityRows} ticker={record.asset} />
-        <InvestorActivityUplotChart data={activityRows} ticker={record.asset} />
-        <InvestorActivityNivoChart data={activityRows} ticker={record.asset} />
-        <InvestorActivityEchartsChart data={activityRows} ticker={record.asset} />
+        <InvestorActivityChart data={activityRows} ticker={record.asset} latencyMs={activityLatencyMs} latencySource={activitySource} />
+        <InvestorActivityUplotChart data={activityRows} ticker={record.asset} latencyMs={activityLatencyMs} latencySource={activitySource} />
+        <InvestorActivityNivoChart data={activityRows} ticker={record.asset} latencyMs={activityLatencyMs} latencySource={activitySource} />
+        <InvestorActivityEchartsChart data={activityRows} ticker={record.asset} latencyMs={activityLatencyMs} latencySource={activitySource} />
       </div>
     </>
   );

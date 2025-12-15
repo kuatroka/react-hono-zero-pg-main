@@ -4,6 +4,8 @@ import { useQuery } from "@rocicorp/zero/react";
 import { queries } from "@/zero/queries";
 import { PRELOAD_TTL } from "@/zero-preload";
 import { Input } from "@/components/ui/input";
+import { LatencyBadge } from "@/components/LatencyBadge";
+import { useLatencyMs } from "@/lib/latency";
 
 export function GlobalSearch() {
   const navigate = useNavigate();
@@ -20,19 +22,30 @@ export function GlobalSearch() {
   const shouldSearch = trimmed.length >= 2;
 
   // Two parallel queries: one for code matches (high priority), one for name matches
-  const [codeResults] = useQuery(
+  const [codeResults, codeResult] = useQuery(
     shouldSearch
       ? queries.searchesByCode(trimmed, 20)
       : queries.searchesByCode("", 0),
     { ttl: PRELOAD_TTL }
   );
 
-  const [nameResults] = useQuery(
+  const [nameResults, nameResult] = useQuery(
     shouldSearch
       ? queries.searchesByName(trimmed, 30)
       : queries.searchesByName("", 0),
     { ttl: PRELOAD_TTL }
   );
+
+  const searchReady = Boolean(
+    !shouldSearch ||
+      (codeResults && nameResults && (codeResults.length > 0 || nameResults.length > 0)) ||
+      (codeResult.type === "complete" && nameResult.type === "complete")
+  );
+  const searchLatencyMs = useLatencyMs({
+    isReady: searchReady,
+    resetKey: shouldSearch ? `globalSearch:${trimmed}` : "globalSearch:idle",
+    enabled: shouldSearch,
+  });
 
   // Merge and rank results: code matches first, then name matches, deduplicated
   // Memoize to prevent unnecessary recalculations and effect re-triggers
@@ -198,6 +211,11 @@ export function GlobalSearch() {
         onKeyDown={handleKeyDown}
         className="w-full sm:w-[30rem]"
       />
+      {shouldSearch && (
+        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+          <LatencyBadge ms={searchLatencyMs} source="Zero: searches.byCode + searches.byName" />
+        </div>
+      )}
       {isOpen && results && (
         <div className="absolute z-50 mt-1 w-full sm:w-[30rem] rounded-md border border-border bg-popover shadow-lg">
           {results.map((result, index) => (

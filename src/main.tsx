@@ -22,6 +22,8 @@ import { AssetDetailPage } from "./pages/AssetDetail";
 import { SuperinvestorDetailPage } from "./pages/SuperinvestorDetail";
 import { initZero } from "./zero-client";
 import { queries } from "./zero/queries";
+import { LatencyBadge } from "./components/LatencyBadge";
+import { useLatencyMs } from "./lib/latency";
 
 // Stable IDs so Zero reuses the same IndexedDB database
 function getStableUserID(): string {
@@ -116,7 +118,7 @@ function MessagesPage({ onReady }: { onReady: () => void }) {
   const z = useZero<Schema>();
 
   const [users, usersResult] = useQuery(queries.listUsers());
-  const [mediums] = useQuery(queries.listMediums());
+  const [mediums, mediumsResult] = useQuery(queries.listMediums());
 
   // Signal ready when data is available (from cache or server)
   useEffect(() => {
@@ -128,11 +130,30 @@ function MessagesPage({ onReady }: { onReady: () => void }) {
   const [filterUser, setFilterUser] = useState("");
   const [filterText, setFilterText] = useState("");
 
-  const [allMessages] = useQuery(queries.messagesFeed(null, ""));
-  const [filteredMessages] = useQuery(
+  const [allMessages, allMessagesResult] = useQuery(queries.messagesFeed(null, ""));
+  const [filteredMessages, filteredMessagesResult] = useQuery(
     queries.messagesFeed(filterUser || null, filterText),
     { ttl: "none" }
   );
+
+  const directoryReady = Boolean(
+    (users.length > 0 || usersResult.type === "complete") &&
+      (mediums.length > 0 || mediumsResult.type === "complete")
+  );
+  const directoryLatencyMs = useLatencyMs({
+    isReady: directoryReady,
+    resetKey: "messages:directory",
+  });
+
+  const feedReady = Boolean(
+    filteredMessages.length > 0 ||
+      allMessages.length > 0 ||
+      (filteredMessagesResult.type === "complete" && allMessagesResult.type === "complete")
+  );
+  const feedLatencyMs = useLatencyMs({
+    isReady: feedReady,
+    resetKey: `messages:feed:${filterUser}:${filterText}`,
+  });
 
   const hasFilters = filterUser || filterText;
 
@@ -147,7 +168,11 @@ function MessagesPage({ onReady }: { onReady: () => void }) {
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="flex flex-col gap-6">
           <header className="flex justify-between items-center flex-wrap gap-4">
-            <h1 className="text-3xl font-bold">Messages</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold">Messages</h1>
+              <LatencyBadge ms={feedLatencyMs} source="Zero: messages.feed" />
+              <LatencyBadge ms={directoryLatencyMs} source="Zero: users.list + mediums.list" />
+            </div>
             <div className="flex items-center gap-4">
               <ThemeSwitcher />
               {viewer && (

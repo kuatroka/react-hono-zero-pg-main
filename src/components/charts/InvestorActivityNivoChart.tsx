@@ -1,21 +1,29 @@
 "use client";
 
 import { ResponsiveBar } from "@nivo/bar";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { LatencyBadge } from "@/components/LatencyBadge";
 import type { CusipQuarterInvestorActivity } from "@/schema";
 
 interface InvestorActivityNivoChartProps {
   data: readonly CusipQuarterInvestorActivity[];
   ticker: string;
+  latencyMs?: number | null;
+  latencySource?: string;
 }
 
-export function InvestorActivityNivoChart({ data, ticker }: InvestorActivityNivoChartProps) {
+export function InvestorActivityNivoChart({ data, ticker, latencyMs, latencySource }: InvestorActivityNivoChartProps) {
   if (data.length === 0) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Investor Activity for {ticker} (Nivo)</CardTitle>
           <CardDescription>No activity data available</CardDescription>
+          {latencySource && (
+            <CardAction>
+              <LatencyBadge ms={latencyMs ?? null} source={latencySource} />
+            </CardAction>
+          )}
         </CardHeader>
       </Card>
     );
@@ -42,6 +50,11 @@ export function InvestorActivityNivoChart({ data, ticker }: InvestorActivityNivo
         <CardDescription>
           Alternative rendering using Nivo with opened (green) vs closed (red) positions.
         </CardDescription>
+        {latencySource && (
+          <CardAction>
+            <LatencyBadge ms={latencyMs ?? null} source={latencySource} />
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent className="h-[450px] w-full">
         <ResponsiveBar

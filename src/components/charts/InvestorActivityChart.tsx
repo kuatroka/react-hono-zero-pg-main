@@ -15,12 +15,15 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { LatencyBadge } from "@/components/LatencyBadge";
 import type { CusipQuarterInvestorActivity } from "@/schema";
 
 interface InvestorActivityChartProps {
   data: readonly CusipQuarterInvestorActivity[];
   ticker: string;
+  latencyMs?: number | null;
+  latencySource?: string;
 }
 
 const chartConfig = {
@@ -34,7 +37,12 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export function InvestorActivityChart({ data, ticker }: InvestorActivityChartProps) {
+export function InvestorActivityChart({
+  data,
+  ticker,
+  latencyMs,
+  latencySource,
+}: InvestorActivityChartProps) {
   // Transform data: opens are positive, closes are negative
   const chartData = data.map((item) => ({
     quarter: item.quarter,
@@ -51,6 +59,11 @@ export function InvestorActivityChart({ data, ticker }: InvestorActivityChartPro
         <CardHeader>
           <CardTitle>Investor Activity (Recharts)</CardTitle>
           <CardDescription>No activity data available for {ticker}</CardDescription>
+          {latencySource && (
+            <CardAction>
+              <LatencyBadge ms={latencyMs ?? null} source={latencySource} />
+            </CardAction>
+          )}
         </CardHeader>
       </Card>
     );
@@ -69,6 +82,11 @@ export function InvestorActivityChart({ data, ticker }: InvestorActivityChartPro
         <CardDescription>
           Number of institutional investors opening (green) vs closing (red) positions by quarter
         </CardDescription>
+        {latencySource && (
+          <CardAction>
+            <LatencyBadge ms={latencyMs ?? null} source={latencySource} />
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="h-[400px] w-full">

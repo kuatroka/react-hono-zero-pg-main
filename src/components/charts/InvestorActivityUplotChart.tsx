@@ -4,21 +4,27 @@ import { useEffect, useRef } from "react";
 import uPlot from "uplot";
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { LatencyBadge } from "@/components/LatencyBadge";
 import type { CusipQuarterInvestorActivity } from "@/schema";
 
 interface InvestorActivityUplotChartProps {
   data: readonly CusipQuarterInvestorActivity[];
   ticker: string;
+  latencyMs?: number | null;
+  latencySource?: string;
 }
 
 export function InvestorActivityUplotChart({
   data,
   ticker,
+  latencyMs,
+  latencySource,
 }: InvestorActivityUplotChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<uPlot | null>(null);
@@ -109,6 +115,11 @@ export function InvestorActivityUplotChart({
         <CardHeader>
           <CardTitle>Investor Activity for {ticker} (uPlot)</CardTitle>
           <CardDescription>No activity data available</CardDescription>
+          {latencySource && (
+            <CardAction>
+              <LatencyBadge ms={latencyMs ?? null} source={latencySource} />
+            </CardAction>
+          )}
         </CardHeader>
       </Card>
     );
@@ -121,6 +132,11 @@ export function InvestorActivityUplotChart({
         <CardDescription>
           Alternative rendering using uPlot with opened (green) vs closed (red) positions.
         </CardDescription>
+        {latencySource && (
+          <CardAction>
+            <LatencyBadge ms={latencyMs ?? null} source={latencySource} />
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent>
         <div ref={containerRef} className="h-[400px] w-full" />

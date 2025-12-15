@@ -7,7 +7,9 @@ import { chartMetaList } from "./charts/factory";
 import { ThemeSwitcher } from "./ThemeSwitcher";
 import { Schema } from "../schema";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LatencyBadge } from "@/components/LatencyBadge";
+import { useLatencyMs } from "@/lib/latency";
 
 export function CounterPage({ onReady }: { onReady: () => void }) {
   const z = useZero<Schema>();
@@ -31,8 +33,22 @@ export function CounterPage({ onReady }: { onReady: () => void }) {
   };
   
   const [counterRows, counterResult] = useQuery(queries.counterCurrent("main"));
-  const [userCounterRows] = useQuery(queries.userCounter(userCounterKey));
+  const [userCounterRows, userCounterResult] = useQuery(queries.userCounter(userCounterKey));
   const [quarters, quartersResult] = useQuery(queries.quartersSeries());
+
+  const counterReady = Boolean((counterRows && counterRows.length > 0) || counterResult.type === "complete");
+  const counterLatencyMs = useLatencyMs({ isReady: counterReady, resetKey: "counter:main" });
+
+  const userCounterReady = Boolean(
+    (userCounterRows && userCounterRows.length > 0) || userCounterResult.type === "complete"
+  );
+  const userCounterLatencyMs = useLatencyMs({
+    isReady: userCounterReady,
+    resetKey: `userCounter:${userCounterKey}`,
+  });
+
+  const quartersReady = Boolean((quarters && quarters.length > 0) || quartersResult.type === "complete");
+  const quartersLatencyMs = useLatencyMs({ isReady: quartersReady, resetKey: "quarters:series" });
 
   // Signal ready when data is available (from cache or server)
   useEffect(() => {
@@ -132,7 +148,10 @@ export function CounterPage({ onReady }: { onReady: () => void }) {
           <section className="grid gap-6 grid-cols-1 md:grid-cols-2">
             <Card>
               <CardContent className="flex flex-col items-center pt-6">
-                <CardTitle className="text-center mb-2">Global Counter</CardTitle>
+                <div className="flex items-center justify-center gap-3 mb-2">
+                  <CardTitle className="text-center">Global Counter</CardTitle>
+                  <LatencyBadge ms={counterLatencyMs} source="Zero: counter.current" />
+                </div>
                 <p className="text-sm text-muted-foreground mb-4 text-center">Synced across all users</p>
                 <div className="flex items-center justify-center gap-0 w-full max-w-xs">
                   <Button onClick={handleDecrement} size="icon" className="text-2xl h-16 w-16 rounded-r-none flex-shrink-0">
@@ -150,7 +169,10 @@ export function CounterPage({ onReady }: { onReady: () => void }) {
 
             <Card>
               <CardContent className="flex flex-col items-center pt-6">
-                <CardTitle className="text-center mb-2">Your Counter</CardTitle>
+                <div className="flex items-center justify-center gap-3 mb-2">
+                  <CardTitle className="text-center">Your Counter</CardTitle>
+                  <LatencyBadge ms={userCounterLatencyMs} source="Zero: user_counter.current" />
+                </div>
                 <p className="text-sm text-muted-foreground mb-4 text-center">Private to you only</p>
                 <div className="flex items-center justify-center gap-0 w-full max-w-xs">
                   <Button
@@ -196,6 +218,9 @@ export function CounterPage({ onReady }: { onReady: () => void }) {
               <CardHeader>
                 <CardTitle>{primaryChart.title}</CardTitle>
                 <p className="text-sm text-muted-foreground">{primaryChart.description}</p>
+                <CardAction>
+                  <LatencyBadge ms={quartersLatencyMs} source="Zero: quarters.series" />
+                </CardAction>
               </CardHeader>
               <CardContent>
                 <div className="overflow-hidden">
@@ -216,6 +241,9 @@ export function CounterPage({ onReady }: { onReady: () => void }) {
                 <CardHeader>
                   <CardTitle className="text-base">{meta.title}</CardTitle>
                   <p className="text-sm text-muted-foreground">{meta.description}</p>
+                  <CardAction>
+                    <LatencyBadge ms={quartersLatencyMs} source="Zero: quarters.series" />
+                  </CardAction>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-hidden">

@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useQuery, useZero } from '@rocicorp/zero/react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DataTable, ColumnDef } from '@/components/DataTable';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { LatencyBadge } from '@/components/LatencyBadge';
 import { Superinvestor, Schema, Search } from '@/schema';
+import { useLatencyMs } from '@/lib/latency';
 import { queries } from '@/zero/queries';
 import { preload, PRELOAD_TTL, PRELOAD_LIMITS } from '@/zero-preload';
 
@@ -82,6 +84,14 @@ export function SuperinvestorsTablePage({ onReady }: { onReady: () => void }) {
       : queries.searchesByCategory('superinvestors', '', 0),
     { ttl: PRELOAD_TTL }
   );
+
+  const browseReady = Boolean((superinvestorsPageRows && superinvestorsPageRows.length > 0) || superinvestorsResult.type === 'complete');
+  const searchReady = Boolean((superinvestorSearchRows && superinvestorSearchRows.length > 0) || searchResult.type === 'complete');
+  const activeLatencyMs = useLatencyMs({
+    isReady: trimmedSearch ? searchReady : browseReady,
+    resetKey: trimmedSearch ? `search:${trimmedSearch}` : `browse:${windowLimit}`,
+  });
+  const latencySource = trimmedSearch ? 'Zero: searches.byCategory (superinvestors)' : 'Zero: superinvestors.page';
 
   // Signal ready when data is available (from cache or server)
   const readyCalledRef = useRef(false);
@@ -195,6 +205,9 @@ export function SuperinvestorsTablePage({ onReady }: { onReady: () => void }) {
         <CardHeader>
           <CardTitle className="text-3xl font-bold tracking-tight">Superinvestors</CardTitle>
           <CardDescription>Browse and search institutional investors (13F filers)</CardDescription>
+          <CardAction>
+            <LatencyBadge ms={activeLatencyMs} source={latencySource} />
+          </CardAction>
         </CardHeader>
         <CardContent>
           {(

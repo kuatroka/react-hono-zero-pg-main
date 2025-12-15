@@ -1,21 +1,29 @@
 "use client";
 
 import ReactECharts from "echarts-for-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { LatencyBadge } from "@/components/LatencyBadge";
 import type { CusipQuarterInvestorActivity } from "@/schema";
 
 interface InvestorActivityEchartsChartProps {
   data: readonly CusipQuarterInvestorActivity[];
   ticker: string;
+  latencyMs?: number | null;
+  latencySource?: string;
 }
 
-export function InvestorActivityEchartsChart({ data, ticker }: InvestorActivityEchartsChartProps) {
+export function InvestorActivityEchartsChart({ data, ticker, latencyMs, latencySource }: InvestorActivityEchartsChartProps) {
   if (data.length === 0) {
     return (
       <Card>
         <CardHeader>
           <CardTitle>Investor Activity for {ticker} (ECharts)</CardTitle>
           <CardDescription>No activity data available</CardDescription>
+          {latencySource && (
+            <CardAction>
+              <LatencyBadge ms={latencyMs ?? null} source={latencySource} />
+            </CardAction>
+          )}
         </CardHeader>
       </Card>
     );
@@ -111,6 +119,11 @@ export function InvestorActivityEchartsChart({ data, ticker }: InvestorActivityE
         <CardDescription>
           Alternative rendering using Apache ECharts with opened (green) vs closed (red) positions.
         </CardDescription>
+        {latencySource && (
+          <CardAction>
+            <LatencyBadge ms={latencyMs ?? null} source={latencySource} />
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent className="h-[450px] w-full">
         <ReactECharts option={option} style={{ height: "100%", width: "100%" }} />
