@@ -62,15 +62,15 @@ const userID = getStableUserID();
 const storageKey = getStableStorageKey();
 const server = import.meta.env.VITE_PUBLIC_SERVER ?? "http://localhost:4848";
 const auth = encodedJWT;
-const getQueriesURL = import.meta.env.VITE_ZERO_GET_QUERIES_URL ?? "http://localhost:4001/api/zero/get-queries";
+const getQueriesURL =
+  import.meta.env.VITE_ZERO_GET_QUERIES_URL ??
+  "http://localhost:4001/api/zero/get-queries";
 
 function AppContent() {
   const z = useZero<Schema>();
   initZero(z);
 
-  // Prevent UI flash on refresh: hide until content is ready
-  const [contentReady, setContentReady] = useState(false);
-  const onReady = () => setContentReady(true);
+  const onReady = () => {};
 
   useEffect(() => {
     requestPersistentStorage().catch(() => {});
@@ -78,7 +78,7 @@ function AppContent() {
 
   return (
     <BrowserRouter>
-      <div style={{ visibility: contentReady ? 'visible' : 'hidden' }}>
+      <div>
         <GlobalNav />
         <Routes>
           <Route path="/" element={<LandingPage onReady={onReady} />} />
