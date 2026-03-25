@@ -195,10 +195,10 @@ The current working local setup uses:
 - **UI:** `http://localhost:3001`
 - **API:** `http://localhost:4001`
 - **Zero Cache:** `http://localhost:4848`
-- **Zero query endpoint (browser-facing):** `/api/zero/get-queries` via the Vite proxy
+- **Zero query endpoint (browser-facing):** `http://localhost:4001/api/zero/get-queries`
 - **Zero query endpoint (server-facing):** `ZERO_QUERY_URL="http://localhost:4001/api/zero/get-queries"`
 
-Important: the browser should use the **same-origin** `/api/zero/get-queries` path. Pointing `VITE_ZERO_GET_QUERIES_URL` directly at `http://localhost:4001/...` can break synced queries in the browser due to cross-origin behavior.
+Important: in Zero 1.x the browser-facing query URL must exactly match the API URL that Zero Cache is allowed to call. In this repo that is `http://localhost:4001/api/zero/get-queries` for both `VITE_ZERO_GET_QUERIES_URL` and `ZERO_QUERY_URL`.
 
 ### Alternative: Individual Commands (For Debugging)
 

@@ -3,10 +3,8 @@ import path from "node:path";
 
 const repoRoot = process.cwd();
 const envPath = path.join(repoRoot, ".env");
-const mainPath = path.join(repoRoot, "src", "main.tsx");
 
 const envText = readFileSync(envPath, "utf8");
-const mainText = readFileSync(mainPath, "utf8");
 
 function getEnvValue(name: string): string | null {
   const match = envText.match(new RegExp(`^${name}=(.+)$`, "m"));
@@ -20,28 +18,28 @@ const deprecatedZeroGetQueriesUrl = getEnvValue("ZERO_GET_QUERIES_URL");
 const deprecatedZeroForwardCookies = getEnvValue("ZERO_GET_QUERIES_FORWARD_COOKIES");
 const zeroQueryForwardCookies = getEnvValue("ZERO_QUERY_FORWARD_COOKIES");
 const apiPort = getEnvValue("API_PORT") ?? "4000";
-const uiPortMatch = mainText.match(/window\.location\.origin/);
+const expectedQueryUrl = `http://localhost:${apiPort}/api/zero/get-queries`;
 
 const problems: string[] = [];
 
 if (!viteGetQueriesUrl) {
   problems.push("VITE_ZERO_GET_QUERIES_URL is missing");
-} else {
-  if (viteGetQueriesUrl.includes(`localhost:${apiPort}`)) {
-    problems.push(
-      `VITE_ZERO_GET_QUERIES_URL points cross-origin to localhost:${apiPort}; expected same-origin /api path to avoid browser CORS issues`
-    );
-  }
-
-  if (!viteGetQueriesUrl.startsWith("/api") && !uiPortMatch) {
-    problems.push(
-      "src/main.tsx does not appear to derive getQueriesURL from window.location.origin while env points to an absolute URL"
-    );
-  }
+} else if (viteGetQueriesUrl !== expectedQueryUrl) {
+  problems.push(
+    `VITE_ZERO_GET_QUERIES_URL must be exactly ${expectedQueryUrl} so Zero Cache accepts the browser query URL`
+  );
 }
 
 if (!zeroQueryUrl) {
   problems.push("ZERO_QUERY_URL is missing; Zero 1.x expects ZERO_QUERY_URL for custom queries");
+} else if (zeroQueryUrl !== expectedQueryUrl) {
+  problems.push(
+    `ZERO_QUERY_URL must be exactly ${expectedQueryUrl} so Zero Cache can validate and fetch the custom query transformer`
+  );
+}
+
+if (viteGetQueriesUrl && zeroQueryUrl && viteGetQueriesUrl !== zeroQueryUrl) {
+  problems.push("VITE_ZERO_GET_QUERIES_URL and ZERO_QUERY_URL must match exactly in Zero 1.x");
 }
 
 if (deprecatedZeroGetQueriesUrl) {

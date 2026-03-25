@@ -50,7 +50,7 @@ curl -i -X POST http://localhost:<api-port>/api/zero/get-queries -H 'content-typ
 - Open the UI
 - Check DevTools Network for `get-queries`
 - Check console errors
-- Verify whether the browser is using same-origin `/api/...` or a hardcoded cross-origin URL
+- Verify whether the browser is using the exact absolute query URL that Zero Cache is configured to allow
 
 ### Zero cache checks
 - Inspect zero-cache startup logs
@@ -68,8 +68,8 @@ Verify at least:
 ## Common rescue pattern
 
 If the UI renders but data is blank:
-- confirm whether `VITE_ZERO_GET_QUERIES_URL` is cross-origin
-- prefer browser-facing same-origin `/api/...` query URLs
+- confirm whether `VITE_ZERO_GET_QUERIES_URL` exactly matches `ZERO_QUERY_URL`
+- use the absolute API URL that Zero Cache is allowed to call (for this repo: `http://localhost:4001/api/zero/get-queries`)
 - use `ZERO_QUERY_URL` for Zero 1.x server-side query configuration
 - verify transformed query responses before changing broader app logic
 

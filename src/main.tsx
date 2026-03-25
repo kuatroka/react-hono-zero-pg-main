@@ -64,7 +64,7 @@ const server = import.meta.env.VITE_PUBLIC_SERVER ?? "http://localhost:4848";
 const auth = encodedJWT;
 const getQueriesURL =
   import.meta.env.VITE_ZERO_GET_QUERIES_URL ??
-  `${window.location.origin}/api/zero/get-queries`;
+  "http://localhost:4001/api/zero/get-queries";
 
 function AppContent() {
   const z = useZero<Schema>();
