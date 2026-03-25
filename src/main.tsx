@@ -70,9 +70,7 @@ function AppContent() {
   const z = useZero<Schema>();
   initZero(z);
 
-  // Prevent UI flash on refresh: hide until content is ready
-  const [contentReady, setContentReady] = useState(false);
-  const onReady = () => setContentReady(true);
+  const onReady = () => {};
 
   useEffect(() => {
     requestPersistentStorage().catch(() => {});
@@ -80,7 +78,7 @@ function AppContent() {
 
   return (
     <BrowserRouter>
-      <div style={{ visibility: contentReady ? 'visible' : 'hidden' }}>
+      <div>
         <GlobalNav />
         <Routes>
           <Route path="/" element={<LandingPage onReady={onReady} />} />

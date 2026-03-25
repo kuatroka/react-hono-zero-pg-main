@@ -7,15 +7,16 @@
     "dev:db-up": "bash -c 'RUNTIME=$(./scripts/detect-container-runtime.sh) && $RUNTIME compose --env-file .env -f ./docker/docker-compose.yml up'",
     "dev:zero-cache": "bash -c 'set -a && source .env && set +a && bunx zero-cache-dev -p src/schema.ts'",
     "dev:api": "bash -c 'set -a && source .env && set +a && bun run --watch api/server.ts'",
-    "dev:ui": "bunx vite",
+    "dev:ui": "bunx --bun vite",
     "dev": "concurrently -n api,ui,zero -c cyan,magenta,yellow \"bun run dev:api\" \"bun run dev:ui\" \"bun run dev:zero-cache\"",
     "dev:all": "bun run dev:db-up & sleep 3 && bun run dev",
     "dev:db-down": "bash -c 'RUNTIME=$(./scripts/detect-container-runtime.sh) && $RUNTIME compose --env-file .env -f ./docker/docker-compose.yml down'",
     "dev:clean": "bash -c 'source .env && RUNTIME=$(./scripts/detect-container-runtime.sh) && $RUNTIME volume rm -f docker_zstart_pgdata && rm -rf \"${ZERO_REPLICA_FILE}\"*'",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "build": "bun run tsc -b && bunx vite build",
-    "lint": "bunx eslint ."
+    "test:startup-shell": "bun scripts/check-startup-shell.ts",
+    "build": "bun run tsc -b && bunx --bun vite build",
+    "lint": "bunx --bun eslint ."
   },
   "dependencies": {
     "@nivo/bar": "^0.99.0",
