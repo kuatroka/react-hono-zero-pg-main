@@ -15,6 +15,10 @@ function getEnvValue(name: string): string | null {
 }
 
 const viteGetQueriesUrl = getEnvValue("VITE_ZERO_GET_QUERIES_URL");
+const zeroQueryUrl = getEnvValue("ZERO_QUERY_URL");
+const deprecatedZeroGetQueriesUrl = getEnvValue("ZERO_GET_QUERIES_URL");
+const deprecatedZeroForwardCookies = getEnvValue("ZERO_GET_QUERIES_FORWARD_COOKIES");
+const zeroQueryForwardCookies = getEnvValue("ZERO_QUERY_FORWARD_COOKIES");
 const apiPort = getEnvValue("API_PORT") ?? "4000";
 const uiPortMatch = mainText.match(/window\.location\.origin/);
 
@@ -34,6 +38,24 @@ if (!viteGetQueriesUrl) {
       "src/main.tsx does not appear to derive getQueriesURL from window.location.origin while env points to an absolute URL"
     );
   }
+}
+
+if (!zeroQueryUrl) {
+  problems.push("ZERO_QUERY_URL is missing; Zero 1.x expects ZERO_QUERY_URL for custom queries");
+}
+
+if (deprecatedZeroGetQueriesUrl) {
+  problems.push("ZERO_GET_QUERIES_URL is still set; replace it with ZERO_QUERY_URL for Zero 1.x");
+}
+
+if (deprecatedZeroForwardCookies) {
+  problems.push(
+    "ZERO_GET_QUERIES_FORWARD_COOKIES is still set; replace it with ZERO_QUERY_FORWARD_COOKIES for Zero 1.x"
+  );
+}
+
+if (!zeroQueryForwardCookies) {
+  problems.push("ZERO_QUERY_FORWARD_COOKIES is missing");
 }
 
 if (problems.length > 0) {

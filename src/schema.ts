@@ -154,6 +154,7 @@ const messageRelationships = relationships(message, ({ one }) => ({
 export const schema = createSchema({
   tables: [user, medium, message, counter, valueQuarter, entity, userCounter, searches, asset, superinvestor, cusipQuarterInvestorActivity, cusipQuarterInvestorActivityDetail],
   relationships: [messageRelationships],
+  enableLegacyMutators: true,
 });
 
 export const builder = createBuilder(schema);
@@ -177,20 +178,20 @@ type AuthData = {
   sub: string | null;
 };
 
-export const permissions = definePermissions<AuthData, Schema>(schema, () => {
+export const permissions = await definePermissions<AuthData, Schema>(schema, () => {
   const allowIfLoggedIn = (
     authData: AuthData,
-    { cmpLit }: ExpressionBuilder<Schema, keyof Schema["tables"]>
+    { cmpLit }: ExpressionBuilder<keyof Schema["tables"] & string, Schema>
   ) => cmpLit(authData.sub, "IS NOT", null);
 
   const allowIfMessageSender = (
     authData: AuthData,
-    { cmp }: ExpressionBuilder<Schema, "message">
+    { cmp }: ExpressionBuilder<"message", Schema>
   ) => cmp("senderID", "=", authData.sub ?? "");
 
   const allowIfUserCounterOwner = (
     authData: AuthData,
-    { cmp }: ExpressionBuilder<Schema, "user_counters">
+    { cmp }: ExpressionBuilder<"user_counters", Schema>
   ) => cmp("userId", "=", authData.sub ?? "");
 
   return {

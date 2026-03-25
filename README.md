@@ -184,9 +184,21 @@ bun run dev
 ```
 
 This single command runs three services concurrently with color-coded output:
-- **API Server** (cyan) - Hono API on Bun runtime
-- **UI Server** (magenta) - Vite dev server for React
-- **Zero Cache** (yellow) - Zero sync cache server
+- **API Server** (cyan) - Hono API on Bun runtime at `http://localhost:4001`
+- **UI Server** (magenta) - Vite dev server for React at `http://localhost:3001`
+- **Zero Cache** (yellow) - Zero sync cache server at `http://localhost:4848`
+
+### Verified Local Runtime Contract
+
+The current working local setup uses:
+
+- **UI:** `http://localhost:3001`
+- **API:** `http://localhost:4001`
+- **Zero Cache:** `http://localhost:4848`
+- **Zero query endpoint (browser-facing):** `/api/zero/get-queries` via the Vite proxy
+- **Zero query endpoint (server-facing):** `ZERO_QUERY_URL="http://localhost:4001/api/zero/get-queries"`
+
+Important: the browser should use the **same-origin** `/api/zero/get-queries` path. Pointing `VITE_ZERO_GET_QUERIES_URL` directly at `http://localhost:4001/...` can break synced queries in the browser due to cross-origin behavior.
 
 ### Alternative: Individual Commands (For Debugging)
 
@@ -290,7 +302,7 @@ bun run dev:api
 **2. In a separate terminal, run the benchmark:**
 
 ```bash
-bunx autocannon -c 100 -d 30 http://localhost:4000/api/counter
+bunx autocannon -c 100 -d 30 http://localhost:4001/api/counter
 ```
 
 This command runs a 30-second load test with 100 concurrent connections.
