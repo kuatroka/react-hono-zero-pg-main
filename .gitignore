@@ -33,3 +33,6 @@ zero-schema.json
 
 # sst
 .sst
+
+# worktrees
+.worktrees/
