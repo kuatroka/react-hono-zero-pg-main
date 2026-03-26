@@ -6,6 +6,7 @@ import { PRELOAD_TTL } from "@/zero-preload";
 import { Input } from "@/components/ui/input";
 import { LatencyBadge } from "@/components/LatencyBadge";
 import { useLatencyMs } from "@/lib/latency";
+import type { Search } from "@/schema";
 
 export function GlobalSearch() {
   const navigate = useNavigate();
@@ -49,18 +50,18 @@ export function GlobalSearch() {
 
   // Merge and rank results: code matches first, then name matches, deduplicated
   // Memoize to prevent unnecessary recalculations and effect re-triggers
-  const results = useMemo(() => {
+  const results = useMemo<Search[]>(() => {
     if (!shouldSearch) return [];
-    
+
     const searchLower = trimmed.toLowerCase();
     const seen = new Set<number>();
-    const merged: typeof codeResults = [];
+    const merged: Search[] = [];
 
     // Helper to calculate score for sorting
-    const getScore = (item: { code?: string; name?: string }) => {
+    const getScore = (item: Pick<Search, "code" | "name">) => {
       const codeLower = (item.code || "").toLowerCase();
       const nameLower = (item.name || "").toLowerCase();
-      
+
       // Highest priority: exact code match
       if (codeLower === searchLower) return 100;
       // Code starts with search term
@@ -154,7 +155,7 @@ export function GlobalSearch() {
     setQuery(value);
   };
 
-  const handleNavigate = (result: any) => {
+  const handleNavigate = (result: Search) => {
     resultSelectedRef.current = true;
     setIsOpen(false);
     setQuery("");

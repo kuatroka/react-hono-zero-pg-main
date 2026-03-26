@@ -12,6 +12,12 @@ interface InvestorActivityEchartsChartProps {
   latencySource?: string;
 }
 
+type TooltipParam = {
+  seriesName?: string;
+  value?: number | string;
+  axisValueLabel?: string;
+};
+
 export function InvestorActivityEchartsChart({ data, ticker, latencyMs, latencySource }: InvestorActivityEchartsChartProps) {
   if (data.length === 0) {
     return (
@@ -49,7 +55,7 @@ export function InvestorActivityEchartsChart({ data, ticker, latencyMs, latencyS
     tooltip: {
       trigger: "axis",
       axisPointer: { type: "shadow" },
-      formatter: (params: any[]) => {
+      formatter: (params: TooltipParam[]) => {
         const lines = params.map((p) => {
           const label = p.seriesName;
           const value = Math.abs(Number(p.value));

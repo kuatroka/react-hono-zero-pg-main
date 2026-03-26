@@ -11,7 +11,7 @@ interface InvestorActivityG2ChartProps {
 
 export function InvestorActivityG2Chart({ data, ticker }: InvestorActivityG2ChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<any | null>(null);
+  const chartRef = useRef<null>(null);
 
   useEffect(() => {
     if (!containerRef.current || data.length === 0) return;

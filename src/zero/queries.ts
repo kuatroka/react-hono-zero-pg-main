@@ -120,10 +120,10 @@ export const queries = {
     z.tuple([z.string(), z.string(), z.number().int().min(0).max(50000)]),
     (category, rawSearch, limit) => {
       const search = rawSearch.trim();
-      let base = builder.searches
+      const base = builder.searches
         .where("category", "=", category)
         .orderBy("name", "asc");
-      
+
       if (!search) {
         return base.limit(limit);
       }
@@ -152,10 +152,12 @@ export const queries = {
   assetsPage: syncedQuery(
     "assets.page",
     z.tuple([z.number().int().min(1).max(50000), z.number().int().min(0)]),
-    (limit, _offset) =>
-      builder.assets
+    (limit, _offset) => {
+      void _offset;
+      return builder.assets
         .orderBy("assetName", "asc")
-        .limit(limit)
+        .limit(limit);
+    }
   ),
   assetBySymbol: syncedQuery(
     "assets.bySymbol",
@@ -167,10 +169,12 @@ export const queries = {
   superinvestorsPage: syncedQuery(
     "superinvestors.page",
     z.tuple([z.number().int().min(1).max(50000), z.number().int().min(0)]),
-    (limit, _offset) =>
-      builder.superinvestors
+    (limit, _offset) => {
+      void _offset;
+      return builder.superinvestors
         .orderBy("cikName", "asc")
-        .limit(limit)
+        .limit(limit);
+    }
   ),
 
   superinvestorByCik: syncedQuery(
