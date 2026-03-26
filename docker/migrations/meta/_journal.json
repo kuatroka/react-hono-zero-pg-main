@@ -36,6 +36,20 @@
       "when": 1774446631159,
       "tag": "0004_ensure_zero_sync_key",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1774600000000,
+      "tag": "0005_move_shared_tables_to_namespaces",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1774601000000,
+      "tag": "0006_create_zero_app_publication",
+      "breakpoints": true
     }
   ]
 }
