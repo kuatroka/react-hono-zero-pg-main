@@ -48,6 +48,7 @@ const medium = table("medium")
   .primaryKey("id");
 
 const counter = table("counters")
+  .from("serving.counters")
   .columns({
     id: string(),
     value: number(),
@@ -55,6 +56,7 @@ const counter = table("counters")
   .primaryKey("id");
 
 const valueQuarter = table("value_quarters")
+  .from("serving.value_quarters")
   .columns({
     quarter: string(),
     value: number(),
@@ -63,6 +65,7 @@ const valueQuarter = table("value_quarters")
 
 
 const entity = table("entities")
+  .from("serving.entities")
   .columns({
     id: string(),
     name: string(),
@@ -74,6 +77,7 @@ const entity = table("entities")
   .primaryKey("id");
 
 const userCounter = table("user_counters")
+  .from("app_state.user_counters")
   .columns({
     userId: string().from("user_id"),
     value: number(),
@@ -81,6 +85,7 @@ const userCounter = table("user_counters")
   .primaryKey("userId");
 
 const searches = table("searches")
+  .from("serving.searches")
   .columns({
     id: number(),
     code: string(),
@@ -91,6 +96,7 @@ const searches = table("searches")
   .primaryKey("id");
 
 const asset = table("assets")
+  .from("serving.assets")
   .columns({
     id: number(),
     asset: string(),
@@ -100,6 +106,7 @@ const asset = table("assets")
   .primaryKey("id");
 
 const superinvestor = table("superinvestors")
+  .from("serving.superinvestors")
   .columns({
     id: number(),
     cik: string(),
@@ -110,6 +117,7 @@ const superinvestor = table("superinvestors")
   .primaryKey("id");
 
 const cusipQuarterInvestorActivity = table("cusip_quarter_investor_activity")
+  .from("serving.cusip_quarter_investor_activity")
   .columns({
     id: number(),
     cusip: string(),
