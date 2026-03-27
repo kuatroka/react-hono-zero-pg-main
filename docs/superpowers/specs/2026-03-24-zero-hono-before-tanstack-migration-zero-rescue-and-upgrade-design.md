@@ -38,7 +38,7 @@ From initial repo inspection:
 - Dev scripts still include `dev:zero-cache` and a 3-process `dev` workflow.
 - `.env` contains:
   - `VITE_PUBLIC_SERVER='http://localhost:4848'`
-  - `ZERO_UPSTREAM_DB="postgresql://user:password@127.0.0.1:5432/postgres"`
+  - `ZERO_UPSTREAM_DB="postgresql://xxx:xxx@127.0.0.1:5432/postgres"`
   - `ZERO_GET_QUERIES_URL="http://localhost:4001/api/zero/get-queries"`
   - `VITE_ZERO_GET_QUERIES_URL="http://localhost:4001/api/zero/get-queries"`
 - `openspec/project.md` says the expected API dev server port is `4000` and Vite dev server port is `3003`.

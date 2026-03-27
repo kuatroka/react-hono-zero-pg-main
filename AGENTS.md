@@ -2,7 +2,7 @@
 ## Tech Stack and javascript runtime
 - Use bun for package manager and js runtime. Never use node.js - https://bun.com/llms-rules.txt
 - bun - https://bun.sh/llms.txt
-- Zero sync tech - https://zero.rocicorp.dev/llms.txt
+- Rocicorp's zero sync tech - https://zero.rocicorp.dev/llms.txt
 
 ## DB and Drizzle
 - Drizzle ORM - https://orm.drizzle.team/llms.txt
@@ -35,6 +35,17 @@ Review, analyse, fix and self test. Use agent-browser tool to test UI. Interact 
 - Any change to Zero package version, native sqlite package version, active Node version, or platform/arch should invalidate the local replica.
 - `bun run dev:zero-cache` now runs `scripts/zero-preflight.mjs` first and may auto-delete the local replica if runtime fingerprints changed.
 - Use `bun run zero:reset` when Zero behaves strangely and you want a clean local replica rebuild.
+
+## Zero VPS Deployment
+- Default this repo to a single VPS running one `zero-cache` instance. Do not plan for horizontal fan-out or multi-node routing unless the task explicitly asks for it.
+- Keep `zero-cache` and its SQLite replica on persistent disk. The replica file (`ZERO_REPLICA_FILE`) is derived state and may be wiped to recover from a wedged sync; the upstream Postgres database is the source of truth.
+- Use a Postgres upstream with `wal_level=logical`. `ZERO_UPSTREAM_DB` must be a direct connection, not a pooler. `ZERO_CVR_DB` and `ZERO_CHANGE_DB` may use pooled connections if needed.
+- If the upstream role cannot create Zero's default publication, create the publication manually and point Zero at it with `ZERO_APP_PUBLICATIONS` / `--app-publications`. This repo already does that in local dev with `zapp_app`.
+- In single-node mode, `zero-cache` runs the replication manager and change-streamer together. Expose only the client-facing sync port through the reverse proxy: `ZERO_PORT` defaults to `4848`, the internal change-streamer defaults to `port + 1` (`4849`), and the proxy must forward WebSocket upgrades to the sync port.
+- Configure Zero through env vars or `zero-cache` flags, not a separate config file. Keep `ZERO_CHANGE_STREAMER_URI` unset for the default one-node setup. Set `ZERO_ADMIN_PASSWORD` in production so the inspector and `/statz` stay gated.
+- Keep the browser query URL and server query allowlist identical in Zero 1.x. In this repo, `VITE_ZERO_GET_QUERIES_URL` must exactly match `ZERO_QUERY_URL`, currently `http://localhost:4001/api/zero/get-queries` in local development.
+- `ZERO_LAZY_STARTUP` is single-node only and can delay the first replication connection until the first request. `ZERO_LITESTREAM_BACKUP_URL` is optional in single-node mode, but use it if you want replica backups/restores.
+- Zero 1.0-era ops guidance still points to single-node as the easiest deployment shape, and updates on that shape imply downtime. If the upstream Postgres provider cannot support the required replication behavior, replication can halt and a reset may be needed after schema changes.
 
 ## Zero tables: what to remember when adding them
 - Do not add a table to `src/schema.ts` unless the upstream Postgres table is already Zero-syncable.
