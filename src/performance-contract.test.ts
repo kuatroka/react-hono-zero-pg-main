@@ -66,6 +66,15 @@ describe("performance contracts", () => {
     expect(globalNav).toContain("<GlobalNavLink");
   });
 
+  test("global nav avoids react-router Link subscriptions for the sticky shell and brand/profile anchors", () => {
+    const globalNav = readProjectFile("src/components/GlobalNav.tsx");
+
+    expect(globalNav).not.toContain("import { Link");
+    expect(globalNav).not.toContain("<Link");
+    expect(globalNav).toContain("memo(function RouterAnchor");
+    expect(globalNav).toContain("navigateTo(to)");
+  });
+
   test("router navigation is bridged once so global search can navigate without rerendering on route changes", () => {
     const main = readProjectFile("src/main.tsx");
     const navigationBridge = readProjectFile("src/lib/navigation.ts");
