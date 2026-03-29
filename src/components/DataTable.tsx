@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { memo, useCallback, useState, useMemo, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,9 +40,63 @@ interface DataTableProps<T> {
   onSearchChange?: (value: string) => void;
   searchDisabled?: boolean;
   searchValue?: string;
+  searchDebounceMs?: number;
 }
 
-export function DataTable<T extends { id: number | string }>({
+interface DataTableSearchInputProps {
+  initialValue: string;
+  placeholder: string;
+  debounceMs: number;
+  onQueryCommit: (value: string) => void;
+}
+
+const DataTableSearchInput = memo(function DataTableSearchInput({
+  initialValue,
+  placeholder,
+  debounceMs,
+  onQueryCommit,
+}: DataTableSearchInputProps) {
+  const [inputValue, setInputValue] = useState(initialValue);
+  const hasMountedRef = useRef(false);
+
+  useEffect(() => {
+    setInputValue(initialValue);
+  }, [initialValue]);
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+
+    if (debounceMs <= 0) {
+      onQueryCommit(inputValue);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      onQueryCommit(inputValue);
+    }, debounceMs);
+
+    return () => clearTimeout(timeoutId);
+  }, [debounceMs, inputValue, onQueryCommit]);
+
+  return (
+    <div className="w-full sm:w-96">
+      <Input
+        type="search"
+        placeholder={placeholder}
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        className="w-full"
+      />
+    </div>
+  );
+});
+
+DataTableSearchInput.displayName = 'DataTableSearchInput';
+
+function DataTableInner<T extends { id: number | string }>({
   data,
   columns,
   searchPlaceholder = 'Search...',
@@ -55,14 +109,18 @@ export function DataTable<T extends { id: number | string }>({
   onSearchChange,
   searchDisabled = false,
   searchValue,
+  searchDebounceMs = 0,
 }: DataTableProps<T>) {
-  const [searchQuery, setSearchQuery] = useState(searchValue ?? '');
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState(searchValue ?? '');
   const [sortColumn, setSortColumn] = useState<keyof T | null>(defaultSortColumn ?? null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>(defaultSortDirection);
   const [currentPage, setCurrentPage] = useState(initialPage ?? 1);
   const [pageSize, setPageSize] = useState(defaultPageSize);
   const [focusedRowIndex, setFocusedRowIndex] = useState<number>(-1);
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
+  const currentPageRef = useRef(initialPage ?? 1);
+  const onSearchChangeRef = useRef(onSearchChange);
+  const onPageChangeRef = useRef(onPageChange);
 
   useEffect(() => {
     if (initialPage != null) {
@@ -71,8 +129,20 @@ export function DataTable<T extends { id: number | string }>({
   }, [initialPage]);
 
   useEffect(() => {
+    currentPageRef.current = currentPage;
+  }, [currentPage]);
+
+  useEffect(() => {
+    onSearchChangeRef.current = onSearchChange;
+  }, [onSearchChange]);
+
+  useEffect(() => {
+    onPageChangeRef.current = onPageChange;
+  }, [onPageChange]);
+
+  useEffect(() => {
     if (searchValue !== undefined) {
-      setSearchQuery(searchValue);
+      setAppliedSearchQuery(searchValue);
     }
   }, [searchValue]);
 
@@ -82,9 +152,9 @@ export function DataTable<T extends { id: number | string }>({
   );
 
   const filteredData = useMemo(() => {
-    if (searchDisabled || !searchQuery.trim()) return data;
+    if (searchDisabled || !appliedSearchQuery.trim()) return data;
 
-    const query = searchQuery.toLowerCase();
+    const query = appliedSearchQuery.toLowerCase();
     return data.filter(row =>
       searchableColumns.some(col => {
         const value = row[col.key];
@@ -92,7 +162,7 @@ export function DataTable<T extends { id: number | string }>({
         return String(value).toLowerCase().includes(query);
       })
     );
-  }, [data, searchQuery, searchableColumns]);
+  }, [appliedSearchQuery, data, searchDisabled, searchableColumns]);
 
   const sortedData = useMemo(() => {
     if (!sortColumn) return filteredData;
@@ -140,40 +210,43 @@ export function DataTable<T extends { id: number | string }>({
     }
   };
 
-  const handleSearch = (value: string) => {
-    setSearchQuery(value);
-    onSearchChange?.(value);
-    const newPage = 1;
-    setCurrentPage(newPage);
-    onPageChange?.(newPage);
-  };
+  const handleSearchCommit = useCallback((value: string) => {
+    setAppliedSearchQuery(value);
+    onSearchChangeRef.current?.(value);
+
+    if (currentPageRef.current !== 1) {
+      currentPageRef.current = 1;
+      setCurrentPage(1);
+      onPageChangeRef.current?.(1);
+    }
+  }, []);
 
   const handlePageSizeChange = (value: string) => {
     setPageSize(Number(value));
     const newPage = 1;
     setCurrentPage(newPage);
-    onPageChange?.(newPage);
+    onPageChangeRef.current?.(newPage);
   };
 
   const handleFirstPage = () => {
     const newPage = 1;
     setCurrentPage(newPage);
-    onPageChange?.(newPage);
+    onPageChangeRef.current?.(newPage);
   };
   const handlePreviousPage = () => {
     const newPage = Math.max(1, currentPage - 1);
     setCurrentPage(newPage);
-    onPageChange?.(newPage);
+    onPageChangeRef.current?.(newPage);
   };
   const handleNextPage = () => {
     const newPage = Math.min(totalPages, currentPage + 1);
     setCurrentPage(newPage);
-    onPageChange?.(newPage);
+    onPageChangeRef.current?.(newPage);
   };
   const handleLastPage = () => {
     const newPage = totalPages;
     setCurrentPage(newPage);
-    onPageChange?.(newPage);
+    onPageChangeRef.current?.(newPage);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -216,15 +289,12 @@ export function DataTable<T extends { id: number | string }>({
 
   return (
     <div className="space-y-4" onKeyDown={handleKeyDown}>
-      <div className="w-full sm:w-96">
-        <Input
-          type="search"
-          placeholder={searchPlaceholder}
-          value={searchQuery}
-          onChange={(e) => handleSearch(e.target.value)}
-          className="w-full"
-        />
-      </div>
+      <DataTableSearchInput
+        initialValue={searchValue ?? ''}
+        placeholder={searchPlaceholder}
+        debounceMs={searchDebounceMs}
+        onQueryCommit={handleSearchCommit}
+      />
 
       <div className="border border-border rounded-lg overflow-x-auto">
         <Table>
@@ -351,3 +421,8 @@ export function DataTable<T extends { id: number | string }>({
     </div>
   );
 }
+
+const MemoizedDataTable = memo(DataTableInner);
+MemoizedDataTable.displayName = 'DataTable';
+
+export const DataTable = MemoizedDataTable as typeof DataTableInner;

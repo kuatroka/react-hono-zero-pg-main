@@ -1,0 +1,12 @@
+.env
+.git
+.github
+.zero
+.zero-data
+.worktrees
+dist
+node_modules
+screenshots
+plans
+*.tsbuildinfo
+

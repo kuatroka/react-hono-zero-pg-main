@@ -57,7 +57,12 @@ export function SuperinvestorDetailPage({ onReady }: { onReady: () => void }) {
         <div><span className="font-semibold">ID:</span> {record.id}</div>
       </div>
       <div className="mt-6">
-        <Link to="/superinvestors" className="link link-primary">Back to superinvestors</Link>
+        <Link
+          to="/superinvestors"
+          className="text-primary underline-offset-4 hover:underline"
+        >
+          Back to superinvestors
+        </Link>
       </div>
     </div>
   );

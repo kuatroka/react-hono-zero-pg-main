@@ -9,8 +9,9 @@
     "preflight:ports": "node scripts/startup-port-guard.mjs",
     "dev:zero-cache": "bash -c 'set -a && source .env && set +a && bun scripts/db-preflight.ts && node scripts/zero-preflight.mjs && bunx zero-deploy-permissions --force -p src/schema.ts && bunx zero-cache-dev --app-publications zapp_app'",
     "dev:api": "bash -c 'set -a && source .env && set +a && bun run --watch api/server.ts'",
-    "dev:ui": "bunx --bun vite",
-    "dev:serve": "bun run preflight:ports && concurrently -n api,ui,zero -c cyan,magenta,yellow \"bun run dev:api\" \"bun run dev:ui\" \"bun run dev:zero-cache\"",
+    "dev:css": "bun run --watch scripts/build-css.ts --watch",
+    "dev:app": "bun run --watch scripts/build-app.ts --watch",
+    "dev:serve": "bun run preflight:ports && concurrently -n api,css,app,zero -c cyan,blue,magenta,yellow \"bun run dev:api\" \"bun run dev:css\" \"bun run dev:app\" \"bun run dev:zero-cache\"",
     "dev": "bun run dev:db-up & bun run dev:serve",
     "dev:all": "bun run dev:db-up & bash -c 'for i in {1..60}; do bun run db:migrate && break; sleep 1; done' && bun run db:seed && bun run dev:serve",
     "dev:db-down": "bash -c 'RUNTIME=$(./scripts/detect-container-runtime.sh) && $RUNTIME compose --env-file .env -f ./docker/docker-compose.yml down'",
@@ -21,7 +22,8 @@
     "db:seed": "bash -c 'set -a && source .env && set +a && bun run scripts/db-seed.ts'",
     "test:zero-preflight": "bun test scripts/zero-preflight.test.mjs",
     "test:startup-shell": "bun scripts/check-startup-shell.ts",
-    "build": "bun run tsc -b && bunx --bun vite build",
+    "build:css": "bun scripts/build-css.ts",
+    "build": "bun run tsc -b && bun run build:css && bun scripts/build-app.ts",
     "lint": "bunx --bun eslint ."
   },
   "dependencies": {
@@ -38,6 +40,7 @@
     "drizzle-orm": "^0.44.7",
     "echarts": "^6.0.0",
     "echarts-for-react": "^3.0.5",
+    "hono": "^4.10.2",
     "jose": "^5.9.6",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.555.0",
@@ -60,7 +63,6 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "^4.3.1",
     "autocannon": "^8.0.0",
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.2.1",
@@ -70,13 +72,11 @@
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.9",
     "globals": "^15.9.0",
-    "hono": "^4.10.2",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.14",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
-    "vercel": "^41.3.2",
-    "vite": "^7.1.12"
+    "vercel": "^41.3.2"
   },
   "trustedDependencies": [
     "@rocicorp/zero-sqlite3"

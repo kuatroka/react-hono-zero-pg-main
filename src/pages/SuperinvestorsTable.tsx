@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useZero } from '@rocicorp/zero/react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DataTable, ColumnDef } from '@/components/DataTable';
@@ -25,45 +25,10 @@ export function SuperinvestorsTablePage({ onReady }: { onReady: () => void }) {
   const parsedPage = rawPage ? parseInt(rawPage, 10) : 1;
   const currentPage = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
 
-  const searchParam = searchParams.get('search') ?? '';
-  const [searchTerm, setSearchTerm] = useState(searchParam);
-  const isTypingRef = useRef(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const rowSelectedRef = useRef(false);
 
-  // Sync searchTerm with URL only on external navigation (not while typing)
-  useEffect(() => {
-    if (!isTypingRef.current) {
-      setSearchTerm(searchParam);
-    }
-    isTypingRef.current = false;
-  }, [searchParam]);
-
-  // Clear search term on mount if no row was selected (page refresh scenario)
-  useEffect(() => {
-    if (searchParam && !rowSelectedRef.current) {
-      // Clear the search param on refresh if no row was selected
-      const params = new URLSearchParams(searchParams);
-      params.delete('search');
-      params.set('page', '1');
-      setSearchParams(params, { replace: true });
-      setSearchTerm('');
-    }
-  }, []); // Run only on mount
-
   const trimmedSearch = searchTerm.trim();
-
-  // Sync URL with searchTerm state changes
-  useEffect(() => {
-    if (!isTypingRef.current) return; // Only update URL when user is typing
-
-    const params = new URLSearchParams();
-    params.set('page', '1');
-    if (searchTerm.trim()) {
-      params.set('search', searchTerm);
-    }
-    setSearchParams(params);
-    isTypingRef.current = false;
-  }, [searchTerm, setSearchParams]);
 
   const [windowLimit, setWindowLimit] = useState(() => {
     const required = currentPage * tablePageSize;
@@ -140,12 +105,9 @@ export function SuperinvestorsTablePage({ onReady }: { onReady: () => void }) {
     preload(z);
   }, [z]);
 
-  const handlePageChange = (newPage: number) => {
+  const handlePageChange = useCallback((newPage: number) => {
     const params = new URLSearchParams(searchParams);
     params.set('page', String(newPage));
-    if (trimmedSearch) {
-      params.set('search', trimmedSearch);
-    }
     setSearchParams(params);
 
     if (trimmedSearch) {
@@ -159,14 +121,13 @@ export function SuperinvestorsTablePage({ onReady }: { onReady: () => void }) {
         return Math.min(base, MAX_WINDOW_LIMIT);
       });
     }
-  };
+  }, [searchParams, setSearchParams, tablePageSize, trimmedSearch, windowLimit]);
 
-  const handleSearchChange = (value: string) => {
-    isTypingRef.current = true;
+  const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value);
-  };
+  }, []);
 
-  const columns: ColumnDef<Superinvestor>[] = [
+  const columns = useMemo<ColumnDef<Superinvestor>[]>(() => [
     {
       key: 'cik',
       header: 'CIK',
@@ -197,7 +158,7 @@ export function SuperinvestorsTablePage({ onReady }: { onReady: () => void }) {
       sortable: true,
       searchable: true,
     },
-  ];
+  ], [navigate, z]);
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
@@ -226,8 +187,8 @@ export function SuperinvestorsTablePage({ onReady }: { onReady: () => void }) {
               initialPage={currentPage}
               onPageChange={handlePageChange}
               onSearchChange={handleSearchChange}
-              searchValue={searchTerm}
-              searchDisabled={!!trimmedSearch}
+              searchDisabled
+              searchDebounceMs={150}
               totalCount={trimmedSearch ? superinvestors?.length ?? 0 : SUPERINVESTORS_TOTAL_ROWS}
             />
           )}

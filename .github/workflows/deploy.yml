@@ -1,0 +1,41 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          timeout: 60m
+          script: |
+            set -euo pipefail
+
+            APP_DIR="${APP_DIR:-/opt/dev/erudio_app/react-hono-zero-pg-main}"
+            PROD_ENV_FILE="${PROD_ENV_FILE:-/etc/fintellectus/react-hono-zero-pg-main.env}"
+
+            if [ ! -d "$APP_DIR" ]; then
+              echo "Missing app directory: $APP_DIR"
+              exit 1
+            fi
+
+            if [ ! -f "$PROD_ENV_FILE" ]; then
+              echo "Missing production env file: $PROD_ENV_FILE"
+              exit 1
+            fi
+
+            cd "$APP_DIR"
+            export PROD_ENV_FILE
+
+            bash infra/prod/scripts/deploy.sh

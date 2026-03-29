@@ -137,7 +137,10 @@ export function CounterPage({ onReady }: { onReady: () => void }) {
         <div className="flex flex-col gap-6">
           <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div className="space-y-3">
-              <Link to="/" className="link link-primary flex items-center gap-2 w-max">
+              <Link
+                to="/"
+                className="flex w-max items-center gap-2 text-primary underline-offset-4 hover:underline"
+              >
                 <span className="text-xl">←</span> Back to Home
               </Link>
               <h1 className="text-2xl sm:text-3xl font-bold">Counter & Quarterly Charts</h1>

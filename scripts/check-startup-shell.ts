@@ -1,6 +1,6 @@
 import { chromium } from "@playwright/test";
 
-const url = process.argv[2] ?? "http://localhost:3001/assets";
+const url = process.argv[2] ?? "http://localhost:4001/assets";
 const waitMs = Number.parseInt(process.argv[3] ?? "4000", 10);
 
 const browser = await chromium.launch({ headless: true, channel: "chrome" });

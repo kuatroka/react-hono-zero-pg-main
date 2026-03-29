@@ -45,11 +45,17 @@ function parseLsof(stdout) {
 }
 
 function getRequiredPorts(env) {
-  const apiPort = Number(env.API_PORT || process.env.API_PORT || "4000");
-  const zeroPort = parsePortNumber(env.VITE_PUBLIC_SERVER || process.env.VITE_PUBLIC_SERVER || "http://localhost:4848", 4848);
+  const apiPort = Number(env.API_PORT || process.env.API_PORT || "4001");
+  const zeroPort = parsePortNumber(
+    env.ZERO_PUBLIC_URL ||
+      process.env.ZERO_PUBLIC_URL ||
+      env.VITE_PUBLIC_SERVER ||
+      process.env.VITE_PUBLIC_SERVER ||
+      "http://localhost:4848",
+    4848,
+  );
   return [
-    { port: 3001, label: "Vite UI" },
-    { port: apiPort, label: "API server" },
+    { port: apiPort, label: "Bun app" },
     { port: zeroPort, label: "Zero cache" },
     { port: zeroPort + 1, label: "Zero change-streamer" },
   ];

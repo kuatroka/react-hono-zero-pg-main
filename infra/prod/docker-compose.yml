@@ -1,0 +1,107 @@
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE:-mooncakelabs/pg_mooncake:18-v0.2-preview}
+    container_name: ${POSTGRES_CONTAINER_NAME:-sec_postgres_18}
+    command:
+      - postgres
+      - -c
+      - max_wal_size=2GB
+      - -c
+      - min_wal_size=512MB
+      - -c
+      - checkpoint_timeout=10min
+      - -c
+      - wal_compression=on
+      - -c
+      - wal_level=logical
+    shm_size: 1g
+    user: postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_BIND_HOST:-127.0.0.1}:${POSTGRES_BIND_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      DUCKDB_FORCE_EXECUTION: ${DUCKDB_FORCE_EXECUTION:-off}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user} --dbname=${POSTGRES_DB:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ${APP_DATA_HOST_PATH:-/opt/dev/erudio_app/app_data}:/app_data:ro
+      - ../../docker/init/01-setup-extensions.sql:/docker-entrypoint-initdb.d/01-setup-extensions.sql:ro
+      - ../../docker/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ../../docker/migrations/02_add_counter_quarters.sql:/docker-entrypoint-initdb.d/03-migration-counters.sql:ro
+      - ../../docker/migrations/03_add_entities.sql:/docker-entrypoint-initdb.d/04-migration-entities.sql:ro
+      - ../../docker/migrations/04_rollback_full_text_search.sql:/docker-entrypoint-initdb.d/05-migration-rollback.sql:ro
+      - ../../docker/migrations/05_add_user_counters.sql:/docker-entrypoint-initdb.d/06-migration-user-counters.sql:ro
+      - ../../docker/migrations/06_add_searches.sql:/docker-entrypoint-initdb.d/07-migration-searches.sql:ro
+      - ../../docker/migrations/07_add_superinvestors_assets_periods.sql:/docker-entrypoint-initdb.d/08-migration-superinvestors.sql:ro
+      - ../../docker/migrations/08_add_drilldown_function.sql:/docker-entrypoint-initdb.d/09-drilldown-function.sql:ro
+      - ../../docker/migrations/08_add_performance_indexes.sql:/docker-entrypoint-initdb.d/10-performance-indexes.sql:ro
+      - ../../docker/migrations/09_add_cusip_quarter_investor_activity.sql:/docker-entrypoint-initdb.d/11-cusip-activity.sql:ro
+      - ../../docker/migrations/10_add_cusip_quarter_investor_activity_detail.sql:/docker-entrypoint-initdb.d/12-cusip-activity-detail.sql:ro
+      - ../../docker/migrations/0004_ensure_zero_sync_key.sql:/docker-entrypoint-initdb.d/13-ensure-zero-sync-key.sql:ro
+      - ../../docker/migrations/0008_move_shared_tables_to_namespaces.sql:/docker-entrypoint-initdb.d/14-move-shared-tables-to-namespaces.sql:ro
+      - ../../docker/migrations/0009_create_zero_app_publication.sql:/docker-entrypoint-initdb.d/15-create-zero-publication.sql:ro
+
+  app:
+    image: ${APP_IMAGE:-fintellectus-app:latest}
+    container_name: ${APP_CONTAINER_NAME:-fintellectus_app}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${APP_BIND_HOST:-127.0.0.1}:${APP_BIND_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      API_PORT: ${API_PORT:-3000}
+      ZERO_UPSTREAM_DB: ${ZERO_UPSTREAM_DB}
+      ZERO_AUTH_SECRET: ${ZERO_AUTH_SECRET}
+      APP_PUBLIC_URL: ${APP_PUBLIC_URL}
+      ZERO_PUBLIC_URL: ${ZERO_PUBLIC_URL}
+      ZERO_QUERY_URL: ${ZERO_QUERY_URL}
+
+  zero-cache:
+    image: ${ZERO_IMAGE:-rocicorp/zero:1.0.0}
+    container_name: ${ZERO_CONTAINER_NAME:-fintellectus_zero_cache}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      app:
+        condition: service_started
+    ports:
+      - "${ZERO_BIND_HOST:-127.0.0.1}:${ZERO_BIND_PORT:-4848}:4848"
+    environment:
+      ZERO_PORT: 4848
+      ZERO_UPSTREAM_DB: ${ZERO_UPSTREAM_DB}
+      ZERO_CVR_DB: ${ZERO_CVR_DB}
+      ZERO_CHANGE_DB: ${ZERO_CHANGE_DB}
+      ZERO_REPLICA_FILE: ${ZERO_REPLICA_FILE:-/var/lib/zero/replica.db}
+      ZERO_ADMIN_PASSWORD: ${ZERO_ADMIN_PASSWORD}
+      ZERO_AUTH_SECRET: ${ZERO_AUTH_SECRET}
+      ZERO_QUERY_URL: ${ZERO_QUERY_URL}
+      ZERO_QUERY_FORWARD_COOKIES: ${ZERO_QUERY_FORWARD_COOKIES:-true}
+      ZERO_APP_PUBLICATIONS: ${ZERO_APP_PUBLICATIONS:-zapp_app}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4848/keepalive"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - zero_cache_data:/var/lib/zero
+
+volumes:
+  postgres_data:
+    name: ${POSTGRES_VOLUME_NAME:-sec_pgdata}
+  zero_cache_data:
+    name: ${ZERO_REPLICA_VOLUME_NAME:-fintellectus_zero_cache}
+

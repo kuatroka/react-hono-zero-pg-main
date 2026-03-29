@@ -93,14 +93,20 @@ export function AssetDetailPage({ onReady }: { onReady: () => void }) {
         </div>
 
         <div className="mt-6">
-          <Link to="/assets" className="link link-primary">Back to assets</Link>
+          <Link
+            to="/assets"
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            Back to assets
+          </Link>
         </div>
       </div>
 
-      {/* Full-width chart section */}
-      <div className="mt-8 space-y-10 w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] px-4 sm:px-6 lg:px-8">
+      <div className="container mx-auto max-w-7xl px-4 pb-8">
+        <div className="mt-8 space-y-10">
         <InvestorActivityUplotChart data={activityRows} ticker={record.asset} latencyMs={activityLatencyMs} latencySource={activitySource} />
         <InvestorActivityEchartsChart data={activityRows} ticker={record.asset} latencyMs={activityLatencyMs} latencySource={activitySource} />
+        </div>
       </div>
     </>
   );

@@ -1,29 +1,47 @@
-import { StrictMode, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import "./index.css";
 import "uplot/dist/uPlot.min.css";
 import { ZeroProvider } from "@rocicorp/zero/react";
 import { schema, Schema } from "./schema";
 import Cookies from "js-cookie";
 import { decodeJwt } from "jose";
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useQuery, useZero } from "@rocicorp/zero/react";
 import { formatDate } from "./date";
 import { randInt } from "./rand";
 import { RepeatButton } from "./repeat-button";
 import { randomMessage } from "./test-data";
-import { CounterPage } from "./components/CounterPage";
-import { ThemeSwitcher } from "./components/ThemeSwitcher";
-import { GlobalNav } from "./components/GlobalNav";
-import { UserProfile } from "./pages/UserProfile";
-import { AssetsTablePage } from "./pages/AssetsTable";
-import { SuperinvestorsTablePage } from "./pages/SuperinvestorsTable";
-import { AssetDetailPage } from "./pages/AssetDetail";
-import { SuperinvestorDetailPage } from "./pages/SuperinvestorDetail";
+import { CounterPage } from "@/components/CounterPage";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { GlobalNav } from "@/components/GlobalNav";
+import { UserProfile } from "@/pages/UserProfile";
+import { AssetsTablePage } from "@/pages/AssetsTable";
+import { SuperinvestorsTablePage } from "@/pages/SuperinvestorsTable";
+import { AssetDetailPage } from "@/pages/AssetDetail";
+import { SuperinvestorDetailPage } from "@/pages/SuperinvestorDetail";
 import { initZero } from "./zero-client";
 import { queries } from "./zero/queries";
-import { LatencyBadge } from "./components/LatencyBadge";
+import { LatencyBadge } from "@/components/LatencyBadge";
 import { useLatencyMs } from "./lib/latency";
+import { getRuntimeConfig } from "./runtime-config";
 
 // Stable IDs so Zero reuses the same IndexedDB database
 function getStableUserID(): string {
@@ -60,17 +78,16 @@ async function requestPersistentStorage() {
 const encodedJWT = Cookies.get("jwt");
 const userID = getStableUserID();
 const storageKey = getStableStorageKey();
-const server = import.meta.env.VITE_PUBLIC_SERVER ?? "http://localhost:4848";
+const runtimeConfig = getRuntimeConfig();
+const server = runtimeConfig.zeroPublicUrl;
 const auth = encodedJWT;
-const getQueriesURL =
-  import.meta.env.VITE_ZERO_GET_QUERIES_URL ??
-  "http://localhost:4001/api/zero/get-queries";
+const getQueriesURL = runtimeConfig.zeroGetQueriesUrl;
 
 function AppContent() {
   const z = useZero<Schema>();
   initZero(z);
 
-  const onReady = () => {};
+  const onReady = useCallback(() => {}, []);
 
   useEffect(() => {
     requestPersistentStorage().catch(() => {});
@@ -101,15 +118,11 @@ function LandingPage({ onReady }: { onReady: () => void }) {
   }, [onReady]);
 
   return (
-    <div className="min-h-screen bg-base-200">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="flex flex-col items-center justify-center gap-6 min-h-[60vh]">
-          <h1 className="text-4xl font-bold text-center">Welcome to fintellectus</h1>
-          <p className="text-lg text-muted-foreground text-center max-w-2xl">
-            Your gateway to superinvestor insights and asset analysis.
-          </p>
-        </div>
-      </div>
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+      <h1 className="text-4xl font-bold tracking-tight mb-4">Welcome to fintellectus</h1>
+      <p className="text-lg text-muted-foreground max-w-md">
+        Your gateway to superinvestor insights and asset analysis.
+      </p>
     </div>
   );
 }
@@ -164,165 +177,174 @@ function MessagesPage({ onReady }: { onReady: () => void }) {
   const viewer = users.find((user) => user.id === z.userID);
 
   return (
-    <div className="min-h-screen bg-base-200">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="flex flex-col gap-6">
-          <header className="flex justify-between items-center flex-wrap gap-4">
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold">Messages</h1>
-              <LatencyBadge ms={feedLatencyMs} source="Zero: messages.feed" />
-              <LatencyBadge ms={directoryLatencyMs} source="Zero: users.list + mediums.list" />
-            </div>
-            <div className="flex items-center gap-4">
-              <ThemeSwitcher />
-              {viewer && (
-                <span className="text-sm">
-                  Logged in as <strong>{viewer.name}</strong>
-                </span>
-              )}
-              {viewer ? (
-                <button
-                  className="btn btn-sm btn-outline"
-                  onMouseDown={() => {
-                    Cookies.remove("jwt");
-                    location.reload();
-                  }}
-                >
-                  Logout
-                </button>
-              ) : (
-                <button
-                  className="btn btn-sm btn-primary"
-                  onMouseDown={() => {
-                    fetch("/api/login")
-                      .then(() => {
-                        location.reload();
-                      })
-                      .catch((error) => {
-                        alert(`Failed to login: ${error.message}`);
-                      });
-                  }}
-                >
-                  Login
-                </button>
-              )}
-            </div>
-          </header>
-
-          <div className="flex flex-wrap gap-4 items-center">
-            <RepeatButton
-              onTrigger={() => {
-                z.mutate.message.insert(randomMessage(users, mediums));
-              }}
-            >
-              Add Messages
-            </RepeatButton>
-            <RepeatButton
-              onTrigger={(e) => {
-                if (!viewer && !e.shiftKey) {
-                  alert(
-                    "You must be logged in to delete. Hold shift to try anyway."
-                  );
-                  return false;
-                }
-                if (allMessages.length === 0) {
-                  return false;
-                }
-
-                const index = randInt(allMessages.length);
-                z.mutate.message.delete({ id: allMessages[index].id });
-                return true;
-              }}
-            >
-              Remove Messages
-            </RepeatButton>
-            <span className="text-sm italic opacity-70">
-              (hold down buttons to repeat)
-            </span>
+    <div className="w-full px-4 py-8 mx-auto">
+      <div className="flex flex-col gap-6">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight">Messages</h1>
+            <LatencyBadge ms={feedLatencyMs} source="Zero: messages.feed" />
+            <LatencyBadge ms={directoryLatencyMs} source="Zero: users.list + mediums.list" />
           </div>
-
-          <div className="flex justify-center">
-            <Link to="/counter" className="btn btn-primary">
-              View Counter & Charts →
-            </Link>
+          <div className="flex items-center gap-4">
+            <ThemeSwitcher />
+            {viewer && (
+              <span className="text-sm text-muted-foreground">
+                Logged in as <strong className="text-foreground">{viewer.name}</strong>
+              </span>
+            )}
+            {viewer ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onMouseDown={() => {
+                  Cookies.remove("jwt");
+                  location.reload();
+                }}
+              >
+                Logout
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onMouseDown={() => {
+                  fetch("/api/login")
+                    .then(() => {
+                      location.reload();
+                    })
+                    .catch((error) => {
+                      alert(`Failed to login: ${error.message}`);
+                    });
+                }}
+              >
+                Login
+              </Button>
+            )}
           </div>
+        </header>
 
-          <div className="card bg-base-100 shadow-lg">
-            <div className="card-body">
-              <h2 className="card-title">Filters</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text">From:</span>
-                  </label>
-                  <select
-                    className="select select-bordered w-full"
-                    onChange={(e) => setFilterUser(e.target.value)}
-                  >
-                    <option value="">All Senders</option>
+        <div className="flex flex-wrap items-center gap-4">
+          <RepeatButton
+            onTrigger={() => {
+              z.mutate.message.insert(randomMessage(users, mediums));
+            }}
+          >
+            Add Messages
+          </RepeatButton>
+          <RepeatButton
+            variant="secondary"
+            onTrigger={(e) => {
+              if (!viewer && !e.shiftKey) {
+                alert(
+                  "You must be logged in to delete. Hold shift to try anyway."
+                );
+                return false;
+              }
+              if (allMessages.length === 0) {
+                return false;
+              }
+
+              const index = randInt(allMessages.length);
+              z.mutate.message.delete({ id: allMessages[index].id });
+              return true;
+            }}
+          >
+            Remove Messages
+          </RepeatButton>
+          <span className="text-sm italic text-muted-foreground">
+            (hold down buttons to repeat)
+          </span>
+        </div>
+
+        <div className="flex justify-center">
+          <Button asChild>
+            <Link to="/counter">View Counter & Charts →</Link>
+          </Button>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Filters</CardTitle>
+            <CardDescription>Filter the shared message feed by sender or message content.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">From</label>
+                <Select onValueChange={setFilterUser} value={filterUser || "__all__"}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="All Senders" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All Senders</SelectItem>
                     {users.map((user) => (
-                      <option key={user.id} value={user.id}>
+                      <SelectItem key={user.id} value={user.id}>
                         {user.name}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </select>
-                </div>
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text">Contains:</span>
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Search message text..."
-                    className="input input-bordered w-full"
-                    onChange={(e) => setFilterText(e.target.value)}
-                  />
-                </div>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="text-sm italic opacity-70 mt-2">
-                {!hasFilters ? (
-                  <>Showing all {filteredMessages.length} messages</>
-                ) : (
-                  <>
-                    Showing {filteredMessages.length} of {allMessages.length}{" "}
-                    messages. Try opening{" "}
-                    <a href="/" target="_blank" className="link link-primary">
-                      another tab
-                    </a>{" "}
-                    to see them all!
-                  </>
-                )}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">Contains</label>
+                <Input
+                  type="text"
+                  placeholder="Search message text..."
+                  value={filterText}
+                  onChange={(e) => setFilterText(e.target.value)}
+                />
               </div>
             </div>
-          </div>
+            <div className="text-sm italic text-muted-foreground">
+              {!hasFilters ? (
+                <>Showing all {filteredMessages.length} messages</>
+              ) : (
+                <>
+                  Showing {filteredMessages.length} of {allMessages.length}{" "}
+                  messages. Try opening{" "}
+                  <a
+                    href="/"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary underline-offset-4 hover:underline"
+                  >
+                    another tab
+                  </a>{" "}
+                  to see them all!
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-          {filteredMessages.length === 0 ? (
-            <div className="text-center py-12">
-              <h3 className="text-2xl italic opacity-70">No posts found 😢</h3>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="table table-zebra">
-                <thead>
-                  <tr>
-                    <th>Sender</th>
-                    <th>Medium</th>
-                    <th>Message</th>
-                    <th>Labels</th>
-                    <th>Sent</th>
-                    <th>Edit</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredMessages.map((message) => (
-                    <tr key={message.id}>
-                      <td>{message.sender?.name}</td>
-                      <td>{message.medium?.name}</td>
-                      <td>{message.body}</td>
-                      <td>{message.labels.join(", ")}</td>
-                      <td>{formatDate(message.timestamp)}</td>
-                      <td
-                        className="cursor-pointer hover:text-primary"
+        {filteredMessages.length === 0 ? (
+          <div className="py-12 text-center">
+            <h3 className="text-2xl italic text-muted-foreground">No posts found 😢</h3>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Sender</TableHead>
+                  <TableHead>Medium</TableHead>
+                  <TableHead>Message</TableHead>
+                  <TableHead>Labels</TableHead>
+                  <TableHead>Sent</TableHead>
+                  <TableHead>Edit</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredMessages.map((message) => (
+                  <TableRow key={message.id}>
+                    <TableCell>{message.sender?.name}</TableCell>
+                    <TableCell>{message.medium?.name}</TableCell>
+                    <TableCell>{message.body}</TableCell>
+                    <TableCell>{message.labels.join(", ")}</TableCell>
+                    <TableCell>{formatDate(message.timestamp)}</TableCell>
+                    <TableCell>
+                      <button
+                        type="button"
+                        className="cursor-pointer text-primary underline-offset-4 hover:underline"
                         onMouseDown={(e) => {
                           if (message.senderID !== z.userID && !e.shiftKey) {
                             alert(
@@ -342,32 +364,30 @@ function MessagesPage({ onReady }: { onReady: () => void }) {
                         }}
                       >
                         ✏️
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <ZeroProvider
-      {...{
-        userID,
-        auth,
-        server,
-        schema,
-        storageKey,
-        getQueriesURL,
-      }}
-    >
-      <AppContent />
-    </ZeroProvider>
-  </StrictMode>
+  <ZeroProvider
+    {...{
+      userID,
+      auth,
+      server,
+      schema,
+      storageKey,
+      getQueriesURL,
+    }}
+  >
+    <AppContent />
+  </ZeroProvider>
 );

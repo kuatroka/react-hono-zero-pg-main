@@ -220,5 +220,7 @@
   body {
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
+    min-height: 100vh;
+    overflow-y: scroll;
   }
 }

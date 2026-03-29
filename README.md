@@ -38,13 +38,13 @@ Next, start the PostgreSQL database:
 bun run dev:db-up
 ```
 
-**In a second terminal**, start all application services (API + UI + Zero Cache):
+**In a second terminal**, start all application services (Bun app + Zero Cache):
 
 ```sh
 bun run dev
 ```
 
-This will start the Hono API server (Bun), Vite dev server (React UI), and Zero cache server concurrently with color-coded output.
+This will start the single Bun/Hono app server (serving the SPA and `/api/*` routes), the CSS watcher, and Zero cache concurrently with color-coded output.
 
 ## Option 2: Install Zero in your own project
 
@@ -114,10 +114,13 @@ import { schema } from "./schema";
 
 // In a real app, you might initialize this inside of useMemo
 // and use a real auth token
+const zeroServerUrl =
+  window.__APP_CONFIG__?.zeroPublicUrl ?? "http://localhost:4848";
+
 const z = new Zero({
   userID: "your-user-id",
   auth: "your-auth-token",
-  server: import.meta.env.VITE_PUBLIC_SERVER,
+  server: zeroServerUrl,
   schema,
 });
 
@@ -177,21 +180,20 @@ This project uses `concurrently` to run multiple development servers simultaneou
 bun run dev:db-up
 ```
 
-**Terminal 2: Start all application services (API + UI + Zero Cache)**
+**Terminal 2: Start all application services (Bun app + Zero Cache)**
 
 ```bash
 bun run dev
 ```
 
 This single command runs three services concurrently with color-coded output:
-- **API Server** (cyan) - Hono API on Bun runtime at `http://localhost:4001`
-- **UI Server** (magenta) - Vite dev server for React at `http://localhost:3001`
+- **Bun App** (cyan) - Hono + SPA server at `http://localhost:4001`
+- **CSS Watcher** (magenta) - rebuilds stylesheet output on change
 - **Zero Cache** (yellow) - Zero sync cache server at `http://localhost:4848`
 
 ### Local Dev Ports
 
-- `3001` for Vite UI
-- `4001` for API server
+- `4001` for the Bun app server (SPA + API)
 - `4848` for Zero cache
 - `4849` for Zero change-streamer
 
@@ -199,8 +201,8 @@ This single command runs three services concurrently with color-coded output:
 
 The current working local setup uses:
 
-- **UI:** `http://localhost:3001`
-- **API:** `http://localhost:4001`
+- **App:** `http://localhost:4001`
+- **API:** `http://localhost:4001/api`
 - **Zero Cache:** `http://localhost:4848`
 - **Zero query endpoint (browser-facing):** `http://localhost:4001/api/zero/get-queries`
 - **Zero query endpoint (server-facing):** `ZERO_QUERY_URL="http://localhost:4001/api/zero/get-queries"`
@@ -215,13 +217,10 @@ If you need to run services separately for debugging purposes:
 # Terminal 1: Database
 bun run dev:db-up
 
-# Terminal 2: API Server
+# Terminal 2: Bun app server
 bun run dev:api
 
-# Terminal 3: UI Server
-bun run dev:ui
-
-# Terminal 4: Zero Cache
+# Terminal 3: Zero Cache
 bun run dev:zero-cache
 ```
 

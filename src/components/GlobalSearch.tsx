@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { memo, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useZero } from "@rocicorp/zero/react";
 import { queries } from "@/zero/queries";
 import { PRELOAD_TTL } from "@/zero-preload";
@@ -9,19 +9,16 @@ import { useLatencyMs } from "@/lib/latency";
 import { Schema } from "@/schema";
 import type { Search } from "@/schema";
 
-export function GlobalSearch() {
+export const GlobalSearch = memo(function GlobalSearch() {
   const z = useZero<Schema>();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const queryParam = searchParams.get("q") ?? "";
-  const [query, setQuery] = useState(queryParam);
+  const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const isTypingRef = useRef(false);
-  const resultSelectedRef = useRef(false);
+  const deferredQuery = useDeferredValue(query);
 
-  const trimmed = query.trim();
+  const trimmed = deferredQuery.trim();
   const shouldSearch = trimmed.length >= 2;
 
   // Two parallel queries: one for code matches (high priority), one for name matches
@@ -104,17 +101,6 @@ export function GlobalSearch() {
       .slice(0, 10);
   }, [shouldSearch, trimmed, codeResults, nameResults]);
 
-  // Clear search term on mount if no result was selected (page refresh scenario)
-  useEffect(() => {
-    if (queryParam && !resultSelectedRef.current) {
-      // Clear the query param on refresh if no result was selected
-      const params = new URLSearchParams(searchParams);
-      params.delete("q");
-      setSearchParams(params, { replace: true });
-      setQuery("");
-    }
-  }, []); // Run only on mount
-
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -129,20 +115,6 @@ export function GlobalSearch() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Sync URL with query state changes
-  useEffect(() => {
-    if (!isTypingRef.current) return; // Only update URL when user is typing
-
-    const params = new URLSearchParams(searchParams);
-    if (query.trim()) {
-      params.set("q", query);
-    } else {
-      params.delete("q");
-    }
-    setSearchParams(params);
-    isTypingRef.current = false;
-  }, [query, searchParams, setSearchParams]);
-
   useEffect(() => {
     setIsOpen(shouldSearch && !!results && results.length > 0);
     if (shouldSearch && results && results.length > 0) {
@@ -153,18 +125,12 @@ export function GlobalSearch() {
   }, [shouldSearch, results]);
 
   const handleQueryChange = (value: string) => {
-    isTypingRef.current = true;
     setQuery(value);
   };
 
   const handleNavigate = (result: Search) => {
-    resultSelectedRef.current = true;
     setIsOpen(false);
     setQuery("");
-    // Clear the query parameter when navigating
-    const params = new URLSearchParams(searchParams);
-    params.delete("q");
-    setSearchParams(params);
 
     if (result.category === "superinvestors") {
       navigate(`/superinvestors/${encodeURIComponent(result.code)}`);
@@ -277,4 +243,6 @@ export function GlobalSearch() {
       )}
     </div>
   );
-}
+});
+
+GlobalSearch.displayName = "GlobalSearch";

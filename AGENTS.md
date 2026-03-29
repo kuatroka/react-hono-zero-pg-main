@@ -1,15 +1,27 @@
 
 ## Tech Stack and javascript runtime
-- Use bun for package manager and js runtime. Never use node.js - https://bun.com/llms-rules.txt
-- bun - https://bun.sh/llms.txt
-- Rocicorp's zero sync tech - https://zero.rocicorp.dev/llms.txt
+- **bun** as package manager, js runtime, bundler and test runner. Never use node.js 
+- **bun** rules- https://bun.com/llms-rules.txt
+- bun docs - https://bun.sh/llms.txt
+- Rocicorp zero sync tech - https://zero.rocicorp.dev/llms.txt
+- hono - https://hono.dev/llms-full.txt
+- hono - https://hono.dev/llms.txt
+- Docker - https://docs.docker.com/llms.txt
+- uPlot (Charting Library) - https://github.com/leeoniya/uplot
+- eCharts (Charting Library) - https://github.com/apache/echarts
+
+## Important companion codebase - sec_app
+- sec_app - '/Users/yo_macbook/Documents/dev/sec_app' - this codebase contains the Dagster data pipeline that generated data and loads it to Postgres that is connected to zero sync and feeds the app. 
+- main data load and DB creation script - '/Users/yo_macbook/Documents/dev/sec_app/src/sec_app/pipeline/db_creation_utils.py'
+- IMPLEMENTATION_NOTES.md - '/Users/yo_macbook/Documents/dev/sec_app/IMPLEMENTATION_NOTES.md'
+- Notes on VPS server - '/Users/yo_macbook/Documents/dev/sec_app/docs/VPS_DEPLOYMENT_GUIDE.md'
 
 ## DB and Drizzle
 - Drizzle ORM - https://orm.drizzle.team/llms.txt
 - Drizzle ORM Full - https://orm.drizzle.team/llms-full.txt
 
-## Bug fixing guidelines
-- When I report a bug, don't start by trying to fix it. Instead, use red/green TDD approach. Start by writing a test that reproduces the bug. Then, try to fix the bug and prove it with a passing test.
+## Bug fixing, architectural changes, refactoring guidelines
+- When I report a bug, architectural changes or refactoring, don't start by trying to fix it. Instead, use red/green TDD approach. Start by writing a test that reproduces the bug. Then, try to fix the bug and prove it with a passing test.
 
 ## Testing
 Review, analyse, fix and self test. Use agent-browser tool to test UI. Interact with the app on different routes. Especially the one where the error is produced. Use UI components like search box (produces result list, search works and clicks navigate to correct page with no errors), tables and charts are visible and with data. Use red/green TDD approach. Declare the issue fixed only when the originally failed tests pass and there are no:
@@ -24,8 +36,7 @@ Review, analyse, fix and self test. Use agent-browser tool to test UI. Interact 
 - If Zero behaves strangely locally: `bun run zero:reset`, then restart with `bun run dev`.
 
 ## Local dev ports
-- `3001` for Vite UI
-- `4001` for API server
+- `4001` for the Bun app server (SPA + API)
 - `4848` for Zero cache
 - `4849` for Zero change-streamer
 

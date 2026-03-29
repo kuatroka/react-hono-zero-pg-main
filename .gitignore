@@ -15,6 +15,7 @@ dist-ssr
 *.localtsbuildinfo
 *.tsbuildinfo
 .vite
+infra/prod/Caddyfile.rendered
 
 # Editor directories and files
 .vscode/*

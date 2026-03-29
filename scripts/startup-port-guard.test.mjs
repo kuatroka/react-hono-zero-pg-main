@@ -18,7 +18,7 @@ afterEach(() => {
 describe("checkRequiredPorts", () => {
   test("reports occupied startup ports with process details", () => {
     process.env.API_PORT = "4001";
-    process.env.VITE_PUBLIC_SERVER = "http://localhost:4848";
+    process.env.ZERO_PUBLIC_URL = "http://localhost:4848";
 
     const result = checkRequiredPorts({
       runCommand(command, args) {
@@ -55,7 +55,7 @@ describe("checkRequiredPorts", () => {
     expect(result.conflicts).toEqual([
       {
         port: 4001,
-        label: "API server",
+        label: "Bun app",
         processes: [{ command: "bun", pid: "14495" }],
       },
       {
@@ -66,15 +66,45 @@ describe("checkRequiredPorts", () => {
     ]);
 
     const message = formatPortConflicts(result.conflicts);
-    expect(message).toContain("Port 4001 is already in use for API server");
+    expect(message).toContain("Port 4001 is already in use for Bun app");
     expect(message).toContain("bun (pid 14495)");
     expect(message).toContain("Port 4849 is already in use for Zero change-streamer");
     expect(message).toContain("lsof -nP -iTCP:4001 -sTCP:LISTEN");
   });
 
+  test("ignores the old Vite port in Bun-only development", () => {
+    process.env.API_PORT = "4001";
+    process.env.ZERO_PUBLIC_URL = "http://localhost:4848";
+
+    const result = checkRequiredPorts({
+      runCommand(command, args) {
+        if (command !== "lsof") {
+          throw new Error(`Unexpected command: ${command}`);
+        }
+
+        const port = args[1]?.replace(/^-?i?TCP:/, "");
+        if (port === "3001") {
+          return {
+            status: 0,
+            stdout: "COMMAND   PID USER   FD   TYPE DEVICE SIZE/OFF NODE NAME\nbun     17777 yo  171u  IPv6 0x1      0t0  TCP *:3001 (LISTEN)\n",
+            stderr: "",
+          };
+        }
+
+        return {
+          status: 1,
+          stdout: "",
+          stderr: "",
+        };
+      },
+    });
+
+    expect(result).toEqual({ ok: true, conflicts: [] });
+  });
+
   test("passes when all required startup ports are available", () => {
     process.env.API_PORT = "4001";
-    process.env.VITE_PUBLIC_SERVER = "http://localhost:4848";
+    process.env.ZERO_PUBLIC_URL = "http://localhost:4848";
 
     const result = checkRequiredPorts({
       runCommand() {

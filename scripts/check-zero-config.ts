@@ -17,7 +17,7 @@ const zeroQueryUrl = getEnvValue("ZERO_QUERY_URL");
 const deprecatedZeroGetQueriesUrl = getEnvValue("ZERO_GET_QUERIES_URL");
 const deprecatedZeroForwardCookies = getEnvValue("ZERO_GET_QUERIES_FORWARD_COOKIES");
 const zeroQueryForwardCookies = getEnvValue("ZERO_QUERY_FORWARD_COOKIES");
-const apiPort = getEnvValue("API_PORT") ?? "4000";
+const apiPort = getEnvValue("API_PORT") ?? "4001";
 const expectedQueryUrl = `http://localhost:${apiPort}/api/zero/get-queries`;
 
 const problems: string[] = [];
