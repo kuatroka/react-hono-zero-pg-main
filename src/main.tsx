@@ -42,6 +42,7 @@ import { queries } from "./zero/queries";
 import { LatencyBadge } from "@/components/LatencyBadge";
 import { useLatencyMs } from "./lib/latency";
 import { RouterNavigationBridge } from "./lib/navigation";
+import { randomUUIDCompat } from "./lib/random-id";
 import { getRuntimeConfig } from "./runtime-config";
 
 // Stable IDs so Zero reuses the same IndexedDB database
@@ -53,7 +54,7 @@ function getStableUserID(): string {
   const ANON_USER_KEY = "zero_anon_user_id";
   let anonID = localStorage.getItem(ANON_USER_KEY);
   if (!anonID) {
-    anonID = `anon_${crypto.randomUUID()}`;
+    anonID = `anon_${randomUUIDCompat()}`;
     localStorage.setItem(ANON_USER_KEY, anonID);
   }
   return anonID;
