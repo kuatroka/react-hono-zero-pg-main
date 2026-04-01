@@ -6,7 +6,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 ENV_FILE="${PROD_ENV_FILE:-$REPO_ROOT/infra/prod/.env.example}"
 COMPOSE_FILE="${COMPOSE_FILE:-$REPO_ROOT/infra/prod/docker-compose.yml}"
 
-required_commands=(git docker curl sudo)
+required_commands=(git docker curl)
 for command in "${required_commands[@]}"; do
   if ! command -v "$command" >/dev/null 2>&1; then
     echo "Missing required command: $command" >&2
@@ -43,7 +43,11 @@ bash "$SCRIPT_DIR/deploy-zero-permissions.sh" "$ENV_FILE"
 compose up -d app zero-cache
 
 OUTPUT_PATH="${CADDY_SITE_PATH}" bash "$SCRIPT_DIR/render-caddyfile.sh" "$ENV_FILE"
-sudo systemctl reload caddy
+if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+  sudo systemctl reload caddy
+else
+  echo "Skipping Caddy reload because passwordless sudo is unavailable."
+fi
 
 CHECK_PUBLIC_ENDPOINTS=1 bash "$SCRIPT_DIR/healthcheck.sh" "$ENV_FILE"
 

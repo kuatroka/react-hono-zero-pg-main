@@ -24,10 +24,15 @@ jobs:
 
             APP_DIR="${APP_DIR:-/opt/dev/erudio_app/react-hono-zero-pg-main}"
             PROD_ENV_FILE="${PROD_ENV_FILE:-/etc/fintellectus/react-hono-zero-pg-main.env}"
+            FALLBACK_ENV_FILE="$APP_DIR/.env.prod"
 
             if [ ! -d "$APP_DIR" ]; then
               echo "Missing app directory: $APP_DIR"
               exit 1
+            fi
+
+            if [ ! -f "$PROD_ENV_FILE" ] && [ -f "$FALLBACK_ENV_FILE" ]; then
+              PROD_ENV_FILE="$FALLBACK_ENV_FILE"
             fi
 
             if [ ! -f "$PROD_ENV_FILE" ]; then
