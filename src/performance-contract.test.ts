@@ -159,7 +159,7 @@ describe("performance contracts", () => {
     expect(superinvestorsTable).not.toContain("useSearchParams");
   });
 
-  test("zero-virtual table isolates the search input and defaults to a 10-row viewport without pagination controls", () => {
+  test("zero-virtual table isolates the compact header search and defaults to a 10-row viewport without pagination controls", () => {
     const zeroVirtualTablePath = join(projectRoot, "src/components/ZeroVirtualDataTable.tsx");
 
     expect(existsSync(zeroVirtualTablePath)).toBe(true);
@@ -174,6 +174,17 @@ describe("performance contracts", () => {
     expect(zeroVirtualTable).toContain("useHistoryScrollState");
     expect(zeroVirtualTable).toContain("memo(function ZeroVirtualTableSearchInput");
     expect(zeroVirtualTable).toContain("const DEFAULT_VISIBLE_ROW_COUNT = 10");
+    expect(zeroVirtualTable).toContain("const DEFAULT_MIN_SEARCH_LENGTH = 2");
+    expect(zeroVirtualTable).toContain("memo(function ZeroVirtualTableHeaderSearch");
+    expect(zeroVirtualTable).toContain("searchPlaceholder = 'Search...'");
+    expect(zeroVirtualTable).toContain("history.replaceState({ ...window.history.state, [historyKey]: null }, '')");
+    expect(zeroVirtualTable).toContain("if (event.key === 'Enter' && onEnter) {");
+    expect(zeroVirtualTable).toContain("<LatencyBadge ms={latencyMs} source={latencySource} />");
+    expect(zeroVirtualTable).toContain("normalizedValue.length >= minSearchLength ? normalizedValue : ''");
+    expect(zeroVirtualTable).toContain("requestAnimationFrame(() => {");
+    expect(zeroVirtualTable).toContain("inputRef.current?.focus()");
+    expect(zeroVirtualTable).toContain("document.addEventListener('pointerdown', handlePointerDown)");
+    expect(zeroVirtualTable).not.toContain("comparisonSearchLabel?: string");
     expect(zeroVirtualTable).not.toContain("ChevronsLeft");
     expect(zeroVirtualTable).not.toContain("Rows per page");
     expect(zeroVirtualTable).not.toContain("Page ");
@@ -209,6 +220,42 @@ describe("performance contracts", () => {
 
     expect(assetsTable).not.toContain("CardDescription");
     expect(superinvestorsTable).not.toContain("CardDescription");
+  });
+
+  test("asset detail surfaces separate data and render latency contracts for investor activity charts", () => {
+    const assetDetail = readProjectFile("src/pages/AssetDetail.tsx");
+    const latencyBadge = readProjectFile("src/components/LatencyBadge.tsx");
+    const latencyHook = readProjectFile("src/lib/latency.ts");
+    const echartsChart = readProjectFile("src/components/charts/InvestorActivityEchartsChart.tsx");
+    const uplotChart = readProjectFile("src/components/charts/InvestorActivityUplotChart.tsx");
+
+    expect(assetDetail).toContain("const [uplotRenderReady, setUplotRenderReady] = useState(false)");
+    expect(assetDetail).toContain("const [echartsRenderReady, setEchartsRenderReady] = useState(false)");
+    expect(assetDetail).toContain("const activityDataLatencyMs = useLatencyMs({");
+    expect(assetDetail).toContain("onRenderReady={() => setUplotRenderReady(true)}");
+    expect(assetDetail).toContain("renderLatencyMs={uplotRenderLatencyMs}");
+    expect(assetDetail).toContain("onRenderReady={() => setEchartsRenderReady(true)}");
+    expect(assetDetail).toContain("renderLatencyMs={echartsRenderLatencyMs}");
+    expect(assetDetail).toContain("<LatencyBadge ms={assetLatencyMs} source={assetSource} label=\"data\" />");
+
+    expect(latencyBadge).toContain("label?: string");
+    expect(latencyBadge).toContain("renderMs?: number | null");
+    expect(latencyBadge).toContain("const shortSource = source.replace(/^Zero: /, 'zero.')");
+    expect(latencyBadge).toContain("renderMs !== undefined");
+
+    expect(latencyHook).toContain("minimumVisibleMs = 0.1");
+    expect(latencyHook).toContain("setMs(Math.max(elapsedMs, minimumVisibleMs))");
+    expect(latencyHook).not.toContain("setMs(0)");
+
+    expect(echartsChart).toContain("onRenderReady?: () => void");
+    expect(echartsChart).toContain("renderLatencyMs?: number | null");
+    expect(echartsChart).toContain("onRenderReady?.()");
+    expect(echartsChart).toContain("<LatencyBadge ms={latencyMs ?? null} source={latencySource} renderMs={renderLatencyMs} />");
+
+    expect(uplotChart).toContain("onRenderReady?: () => void");
+    expect(uplotChart).toContain("renderLatencyMs?: number | null");
+    expect(uplotChart).toContain("onRenderReady?.()");
+    expect(uplotChart).toContain("<LatencyBadge ms={latencyMs ?? null} source={latencySource} renderMs={renderLatencyMs} />");
   });
 
   test("app root does not wrap the router tree in StrictMode while using react-scan for render diagnostics", () => {

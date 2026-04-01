@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@rocicorp/zero/react';
 import { LatencyBadge } from '@/components/LatencyBadge';
@@ -52,11 +52,28 @@ export function AssetDetailPage({ onReady }: { onReady: () => void }) {
 
   const activityResult = hasCusip ? activityByCusipResult : activityByTickerResult;
   const activityReady = Boolean(activityRows.length > 0 || activityResult.type === 'complete');
-  const activityLatencyMs = useLatencyMs({
+  const activityDataLatencyMs = useLatencyMs({
     isReady: activityReady,
     resetKey: hasCusip ? `activity:${cusip ?? ''}` : `activity:${code ?? ''}`,
   });
+  const [uplotRenderReady, setUplotRenderReady] = useState(false);
+  const [echartsRenderReady, setEchartsRenderReady] = useState(false);
+  const uplotRenderLatencyMs = useLatencyMs({
+    isReady: uplotRenderReady,
+    resetKey: `${record?.id ?? 'asset'}:uplot:${activityRows.length}`,
+    enabled: activityRows.length > 0,
+  });
+  const echartsRenderLatencyMs = useLatencyMs({
+    isReady: echartsRenderReady,
+    resetKey: `${record?.id ?? 'asset'}:echarts:${activityRows.length}`,
+    enabled: activityRows.length > 0,
+  });
   const activitySource = hasCusip ? 'Zero: investorActivity.byCusip' : 'Zero: investorActivity.byTicker';
+
+  useEffect(() => {
+    setUplotRenderReady(false);
+    setEchartsRenderReady(false);
+  }, [activityRows.length, record?.id]);
 
   // Signal ready when data is available (from cache or server)
   useEffect(() => {
@@ -83,7 +100,7 @@ export function AssetDetailPage({ onReady }: { onReady: () => void }) {
         <div className="mb-6">
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-3xl font-bold">{record.assetName}</h1>
-            <LatencyBadge ms={assetLatencyMs} source={assetSource} />
+            <LatencyBadge ms={assetLatencyMs} source={assetSource} label="data" />
           </div>
         </div>
         <div className="space-y-3 text-lg">
@@ -104,8 +121,22 @@ export function AssetDetailPage({ onReady }: { onReady: () => void }) {
 
       <div className="container mx-auto max-w-7xl px-4 pb-8">
         <div className="mt-8 space-y-10">
-        <InvestorActivityUplotChart data={activityRows} ticker={record.asset} latencyMs={activityLatencyMs} latencySource={activitySource} />
-        <InvestorActivityEchartsChart data={activityRows} ticker={record.asset} latencyMs={activityLatencyMs} latencySource={activitySource} />
+          <InvestorActivityUplotChart
+            data={activityRows}
+            ticker={record.asset}
+            latencyMs={activityDataLatencyMs}
+            latencySource={activitySource}
+            onRenderReady={() => setUplotRenderReady(true)}
+            renderLatencyMs={uplotRenderLatencyMs}
+          />
+          <InvestorActivityEchartsChart
+            data={activityRows}
+            ticker={record.asset}
+            latencyMs={activityDataLatencyMs}
+            latencySource={activitySource}
+            onRenderReady={() => setEchartsRenderReady(true)}
+            renderLatencyMs={echartsRenderLatencyMs}
+          />
         </div>
       </div>
     </>

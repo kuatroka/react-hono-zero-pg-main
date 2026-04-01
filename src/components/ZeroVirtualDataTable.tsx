@@ -5,9 +5,10 @@ import {
   useHistoryScrollState,
   useZeroVirtualizer,
 } from '@rocicorp/zero-virtual/react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type Key, type ReactNode } from 'react';
+import { ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type Key, type ReactNode } from 'react';
 import { LatencyBadge } from '@/components/LatencyBadge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLatencyMs } from '@/lib/latency';
 import { cn } from '@/lib/utils';
@@ -16,6 +17,7 @@ type SortDirection = 'asc' | 'desc';
 
 const DEFAULT_VISIBLE_ROW_COUNT = 10;
 const DEFAULT_ROW_HEIGHT = 52;
+const DEFAULT_MIN_SEARCH_LENGTH = 2;
 
 export interface ColumnDef<T> {
   key: Extract<keyof T, string>;
@@ -34,52 +36,94 @@ export type ZeroVirtualListContext<TSortColumn extends string> = Readonly<{
   sortDirection: SortDirection;
 }>;
 
+export type ZeroVirtualTableKeyboardNavigation = Readonly<{
+  clearFocusedRow: () => void;
+  focusFirstRow: () => void;
+  focusNextRow: () => void;
+  focusPreviousRow: () => void;
+}>;
+
 interface ZeroVirtualTableSearchInputProps {
-  initialValue: string;
   placeholder: string;
-  debounceMs: number;
-  onQueryCommit: (value: string) => void;
+  value: string;
+  onBlur?: () => void;
+  onEnter?: () => void;
+  onFocus?: () => void;
+  onArrowDown?: () => void;
+  onArrowUp?: () => void;
+  onTabToResults?: () => void;
+  onValueChange: (value: string) => void;
+  autoFocus?: boolean;
+  containerClassName?: string;
+  inputClassName?: string;
 }
 
-const ZeroVirtualTableSearchInput = memo(function ZeroVirtualTableSearchInput({
-  initialValue,
+export const ZeroVirtualTableSearchInput = memo(function ZeroVirtualTableSearchInput({
   placeholder,
-  debounceMs,
-  onQueryCommit,
+  value,
+  onBlur,
+  onEnter,
+  onFocus,
+  onArrowDown,
+  onArrowUp,
+  onTabToResults,
+  onValueChange,
+  autoFocus = false,
+  containerClassName = 'w-full sm:w-96',
+  inputClassName,
 }: ZeroVirtualTableSearchInputProps) {
-  const [inputValue, setInputValue] = useState(initialValue);
-  const hasMountedRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setInputValue(initialValue);
-  }, [initialValue]);
-
-  useEffect(() => {
-    if (!hasMountedRef.current) {
-      hasMountedRef.current = true;
+    if (!autoFocus) {
       return;
     }
 
-    if (debounceMs <= 0) {
-      onQueryCommit(inputValue);
+    const frameId = requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+
+    return () => cancelAnimationFrame(frameId);
+  }, [autoFocus]);
+
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowDown' && onArrowDown) {
+      event.preventDefault();
+      onArrowDown();
       return;
     }
 
-    const timeoutId = setTimeout(() => {
-      onQueryCommit(inputValue);
-    }, debounceMs);
+    if (event.key === 'ArrowUp' && onArrowUp) {
+      event.preventDefault();
+      onArrowUp();
+      return;
+    }
 
-    return () => clearTimeout(timeoutId);
-  }, [debounceMs, inputValue, onQueryCommit]);
+    if (event.key === 'Tab' && !event.shiftKey && onTabToResults) {
+      event.preventDefault();
+      onTabToResults();
+      return;
+    }
+
+    if (event.key === 'Enter' && onEnter) {
+      event.preventDefault();
+      onEnter();
+    }
+  }, [onArrowDown, onArrowUp, onEnter, onTabToResults]);
 
   return (
-    <div className="w-full sm:w-96">
+    <div className={containerClassName}>
       <Input
+        ref={inputRef}
+        autoFocus={autoFocus}
         type="search"
         placeholder={placeholder}
-        value={inputValue}
-        onChange={(event) => setInputValue(event.target.value)}
-        className="w-full"
+        value={value}
+        onBlur={onBlur}
+        onFocus={onFocus}
+        onKeyDown={handleKeyDown}
+        onChange={(event) => onValueChange(event.target.value)}
+        className={cn('w-full', inputClassName)}
       />
     </div>
   );
@@ -90,34 +134,117 @@ ZeroVirtualTableSearchInput.displayName = 'ZeroVirtualTableSearchInput';
 interface ZeroVirtualTableToolbarProps {
   latencyMs: number | null;
   latencySource?: string;
-  onSearchCommit: (value: string) => void;
-  searchDebounceMs: number;
-  searchPlaceholder: string;
-  searchValue: string;
 }
 
 const ZeroVirtualTableToolbar = memo(function ZeroVirtualTableToolbar({
   latencyMs,
   latencySource,
-  onSearchCommit,
-  searchDebounceMs,
-  searchPlaceholder,
-  searchValue,
 }: ZeroVirtualTableToolbarProps) {
+  if (!latencySource) {
+    return null;
+  }
+
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <ZeroVirtualTableSearchInput
-        initialValue={searchValue}
-        placeholder={searchPlaceholder}
-        debounceMs={searchDebounceMs}
-        onQueryCommit={onSearchCommit}
-      />
-      {latencySource ? <LatencyBadge ms={latencyMs} source={latencySource} /> : null}
+    <div className="flex items-center justify-end">
+      <LatencyBadge ms={latencyMs} source={latencySource} />
     </div>
   );
 });
 
 ZeroVirtualTableToolbar.displayName = 'ZeroVirtualTableToolbar';
+
+interface ZeroVirtualTableHeaderSearchProps {
+  placeholder: string;
+  searchValue: string;
+  tableContainerRef: React.RefObject<HTMLDivElement | null>;
+  onArrowDown: () => void;
+  onArrowUp: () => void;
+  onEnter: () => void;
+  onSearchFocus: () => void;
+  onSearchValueChange: (value: string) => void;
+  onTabToResults: () => void;
+}
+
+const ZeroVirtualTableHeaderSearch = memo(function ZeroVirtualTableHeaderSearch({
+  placeholder,
+  searchValue,
+  tableContainerRef,
+  onArrowDown,
+  onArrowUp,
+  onEnter,
+  onSearchFocus,
+  onSearchValueChange,
+  onTabToResults,
+}: ZeroVirtualTableHeaderSearchProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    if (searchValue) {
+      setIsExpanded(true);
+    }
+  }, [searchValue]);
+
+  useEffect(() => {
+    if (!isExpanded || searchValue.trim()) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (tableContainerRef.current?.contains(target)) {
+        return;
+      }
+
+      setIsExpanded(false);
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [isExpanded, searchValue, tableContainerRef]);
+
+  const handleToggle = useCallback(() => {
+    if (isExpanded && searchValue.trim()) {
+      onSearchValueChange('');
+      return;
+    }
+
+    setIsExpanded((current) => !current);
+  }, [isExpanded, onSearchValueChange, searchValue]);
+
+  return (
+    <div className="flex items-center justify-end border-b border-border bg-background px-4 py-2">
+      <div className="flex items-center gap-2">
+        {isExpanded ? (
+          <ZeroVirtualTableSearchInput
+            autoFocus
+            placeholder={placeholder}
+            value={searchValue}
+            onEnter={onEnter}
+            onFocus={onSearchFocus}
+            onArrowDown={onArrowDown}
+            onArrowUp={onArrowUp}
+            onTabToResults={onTabToResults}
+            onValueChange={onSearchValueChange}
+            containerClassName="w-52 sm:w-64"
+            inputClassName="h-8"
+          />
+        ) : null}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={handleToggle}
+          className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+          aria-label={isExpanded ? 'Collapse search' : 'Expand search'}
+        >
+          <Search className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+});
+
+ZeroVirtualTableHeaderSearch.displayName = 'ZeroVirtualTableHeaderSearch';
 
 interface ZeroVirtualTableHeaderProps<
   TRow extends { id: number | string },
@@ -195,6 +322,7 @@ interface ZeroVirtualTableViewportProps<
 > {
   columns: ColumnDef<TRow>[];
   emptyStateLabel: string;
+  focusedRowIndex: number;
   getPageQuery: (
     options: GetPageQueryOptions<TStartRow>,
     listContextParams: ZeroVirtualListContext<TSortColumn>,
@@ -205,6 +333,7 @@ interface ZeroVirtualTableViewportProps<
   historyKey: string;
   listContextParams: ZeroVirtualListContext<TSortColumn>;
   onReadyChange: (isReady: boolean) => void;
+  onRowFocus: (index: number) => void;
   rowHeight: number;
   toStartRow: (row: TRow) => TStartRow;
   visibleRowCount: number;
@@ -217,6 +346,7 @@ function ZeroVirtualTableViewportInner<
 >({
   columns,
   emptyStateLabel,
+  focusedRowIndex,
   getPageQuery,
   getSingleQuery,
   getRowKey,
@@ -224,11 +354,13 @@ function ZeroVirtualTableViewportInner<
   historyKey,
   listContextParams,
   onReadyChange,
+  onRowFocus,
   rowHeight,
   toStartRow,
   visibleRowCount,
 }: ZeroVirtualTableViewportProps<TRow, TStartRow, TSortColumn>) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const focusedRowRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [scrollState, setScrollState] = useHistoryScrollState<TStartRow>(historyKey);
 
   const getScrollElement = useCallback(() => viewportRef.current, []);
@@ -263,6 +395,19 @@ function ZeroVirtualTableViewportInner<
     onReadyChange(isReady);
   }, [isReady, onReadyChange]);
 
+  useEffect(() => {
+    if (focusedRowIndex < 0) {
+      return;
+    }
+
+    const activeElement = document.activeElement;
+    if (activeElement instanceof HTMLInputElement) {
+      return;
+    }
+
+    focusedRowRefs.current[focusedRowIndex]?.focus();
+  }, [focusedRowIndex, virtualItems]);
+
   return (
     <div
       ref={viewportRef}
@@ -284,7 +429,16 @@ function ZeroVirtualTableViewportInner<
             return (
               <div
                 key={virtualRow.key}
-                className="absolute left-0 right-0 border-b border-border bg-background px-4"
+                ref={(element) => {
+                  focusedRowRefs.current[virtualRow.index] = element;
+                }}
+                data-row-index={virtualRow.index}
+                tabIndex={0}
+                onFocus={() => onRowFocus(virtualRow.index)}
+                className={cn(
+                  'absolute left-0 right-0 border-b border-border bg-background px-4 outline-none',
+                  focusedRowIndex === virtualRow.index ? 'bg-muted/50' : undefined,
+                )}
                 style={{
                   height: rowHeight,
                   transform: `translateY(${virtualRow.start}px)`,
@@ -301,7 +455,7 @@ function ZeroVirtualTableViewportInner<
                     >
                       {row
                         ? column.render
-                          ? column.render(row[column.key], row, false)
+                          ? column.render(row[column.key], row, focusedRowIndex === virtualRow.index)
                           : String(row[column.key] ?? '')
                         : columnIndex === 0
                           ? (
@@ -348,10 +502,14 @@ interface ZeroVirtualDataTableProps<
   gridTemplateColumns: string;
   historyKey: string;
   latencySource?: string | ((listContextParams: ZeroVirtualListContext<TSortColumn>) => string);
+  minSearchLength?: number;
+  onKeyboardNavigationReady?: (navigation: ZeroVirtualTableKeyboardNavigation) => void;
   onReady?: () => void;
+  onSearchValueChange?: (value: string) => void;
   rowHeight?: number;
   searchDebounceMs?: number;
   searchPlaceholder?: string;
+  searchValue?: string;
   toStartRow: (row: TRow) => TStartRow;
   visibleRowCount?: number;
 }
@@ -371,27 +529,62 @@ function ZeroVirtualDataTableInner<
   gridTemplateColumns,
   historyKey,
   latencySource,
+  minSearchLength = DEFAULT_MIN_SEARCH_LENGTH,
+  onKeyboardNavigationReady,
   onReady,
+  onSearchValueChange,
   rowHeight = DEFAULT_ROW_HEIGHT,
   searchDebounceMs = 150,
   searchPlaceholder = 'Search...',
+  searchValue,
   toStartRow,
   visibleRowCount = DEFAULT_VISIBLE_ROW_COUNT,
 }: ZeroVirtualDataTableProps<TRow, TStartRow, TSortColumn>) {
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [internalSearchValue, setInternalSearchValue] = useState('');
   const [committedSearch, setCommittedSearch] = useState('');
   const [sortColumn, setSortColumn] = useState<TSortColumn>(defaultSortColumn);
   const [sortDirection, setSortDirection] = useState<SortDirection>(defaultSortDirection);
+  const [focusedRowIndex, setFocusedRowIndex] = useState(-1);
+  const initializedHistoryRef = useRef(false);
   const [isQueryReady, setIsQueryReady] = useState(false);
   const readyCalledRef = useRef(false);
   const onReadyRef = useRef(onReady);
+  const isSearchControlled = searchValue !== undefined;
+  const resolvedSearchValue = isSearchControlled ? searchValue : internalSearchValue;
+  const clearFocusedRow = useCallback(() => {
+    setFocusedRowIndex(-1);
+  }, []);
 
   useEffect(() => {
     onReadyRef.current = onReady;
   }, [onReady]);
 
+  useEffect(() => {
+    const normalizedValue = resolvedSearchValue.trim();
+    const nextCommittedSearch = normalizedValue.length === 0
+      ? ''
+      : normalizedValue.length >= minSearchLength ? normalizedValue : '';
+
+    if (searchDebounceMs <= 0) {
+      setCommittedSearch(nextCommittedSearch);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      setCommittedSearch(nextCommittedSearch);
+    }, searchDebounceMs);
+
+    return () => clearTimeout(timeoutId);
+  }, [minSearchLength, resolvedSearchValue, searchDebounceMs]);
+
+  useEffect(() => {
+    clearFocusedRow();
+  }, [clearFocusedRow, committedSearch, sortColumn, sortDirection]);
+
   const listContextParams = useMemo<ZeroVirtualListContext<TSortColumn>>(
     () => ({
-      search: committedSearch.trim(),
+      search: committedSearch,
       sortColumn,
       sortDirection,
     }),
@@ -406,6 +599,17 @@ function ZeroVirtualDataTableInner<
     resetKey: latencyResetKey,
   });
 
+  useLayoutEffect(() => {
+    if (initializedHistoryRef.current) {
+      return;
+    }
+
+    initializedHistoryRef.current = true;
+    if (window.history.state?.[historyKey]) {
+      window.history.replaceState({ ...window.history.state, [historyKey]: null }, '');
+    }
+  }, [historyKey]);
+
   useEffect(() => {
     setIsQueryReady(false);
   }, [latencyResetKey]);
@@ -419,9 +623,13 @@ function ZeroVirtualDataTableInner<
     onReadyRef.current?.();
   }, [isQueryReady]);
 
-  const handleSearchCommit = useCallback((value: string) => {
-    setCommittedSearch(value);
-  }, []);
+  const handleSearchValueChange = useCallback((value: string) => {
+    if (!isSearchControlled) {
+      setInternalSearchValue(value);
+    }
+
+    onSearchValueChange?.(value);
+  }, [isSearchControlled, onSearchValueChange]);
 
   const handleSort = useCallback((column: TSortColumn) => {
     if (column === sortColumn) {
@@ -437,18 +645,100 @@ function ZeroVirtualDataTableInner<
     setIsQueryReady(ready);
   }, []);
 
+  const focusFirstRow = useCallback(() => {
+    setFocusedRowIndex(0);
+  }, []);
+
+  const focusRowElement = useCallback((index: number) => {
+    requestAnimationFrame(() => {
+      const rowElement = tableContainerRef.current?.querySelector(`[data-row-index="${index}"]`);
+      if (rowElement instanceof HTMLDivElement) {
+        rowElement.focus();
+      }
+    });
+  }, []);
+
+  const activateRowElement = useCallback((index: number) => {
+    requestAnimationFrame(() => {
+      const rowElement = tableContainerRef.current?.querySelector(`[data-row-index="${index}"]`);
+      const link = rowElement?.querySelector?.('a') ?? rowElement?.closest?.('a');
+      if (link instanceof HTMLAnchorElement) {
+        link.click();
+      }
+    });
+  }, []);
+
+  const focusNextRow = useCallback(() => {
+    setFocusedRowIndex((current) => current < 0 ? 0 : current + 1);
+  }, []);
+
+  const focusPreviousRow = useCallback(() => {
+    setFocusedRowIndex((current) => current <= 0 ? 0 : current - 1);
+  }, []);
+
+  const activateFocusedRow = useCallback(() => {
+    const focusedElement = document.activeElement;
+    const link = focusedElement?.querySelector?.('a') ?? focusedElement?.closest?.('a');
+    if (link instanceof HTMLAnchorElement) {
+      link.click();
+    }
+  }, []);
+
+  useEffect(() => {
+    onKeyboardNavigationReady?.({
+      clearFocusedRow,
+      focusFirstRow,
+      focusNextRow,
+      focusPreviousRow,
+    });
+  }, [clearFocusedRow, focusFirstRow, focusNextRow, focusPreviousRow, onKeyboardNavigationReady]);
+
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.target instanceof HTMLInputElement) {
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      focusNextRow();
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      focusPreviousRow();
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      activateFocusedRow();
+    }
+  }, [activateFocusedRow, focusNextRow, focusPreviousRow]);
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" onKeyDown={handleKeyDown}>
       <ZeroVirtualTableToolbar
         latencyMs={activeLatencyMs}
         latencySource={resolvedLatencySource}
-        onSearchCommit={handleSearchCommit}
-        searchDebounceMs={searchDebounceMs}
-        searchPlaceholder={searchPlaceholder}
-        searchValue={committedSearch}
       />
 
-      <div className="overflow-hidden rounded-lg border border-border bg-background">
+      <div ref={tableContainerRef} className="overflow-hidden rounded-lg border border-border bg-background">
+        <ZeroVirtualTableHeaderSearch
+          placeholder={searchPlaceholder}
+          searchValue={resolvedSearchValue}
+          tableContainerRef={tableContainerRef}
+          onArrowDown={focusNextRow}
+          onArrowUp={focusPreviousRow}
+          onEnter={() => {
+            focusFirstRow();
+            focusRowElement(0);
+            activateRowElement(0);
+          }}
+          onSearchFocus={clearFocusedRow}
+          onSearchValueChange={handleSearchValueChange}
+          onTabToResults={focusFirstRow}
+        />
         <ZeroVirtualTableHeader
           columns={columns}
           gridTemplateColumns={gridTemplateColumns}
@@ -459,6 +749,7 @@ function ZeroVirtualDataTableInner<
         <ZeroVirtualTableViewport
           columns={columns}
           emptyStateLabel={emptyStateLabel}
+          focusedRowIndex={focusedRowIndex}
           getPageQuery={getPageQuery}
           getSingleQuery={getSingleQuery}
           getRowKey={getRowKey}
@@ -466,6 +757,7 @@ function ZeroVirtualDataTableInner<
           historyKey={historyKey}
           listContextParams={listContextParams}
           onReadyChange={handleReadyChange}
+          onRowFocus={setFocusedRowIndex}
           rowHeight={rowHeight}
           toStartRow={toStartRow}
           visibleRowCount={visibleRowCount}

@@ -18,6 +18,8 @@ interface InvestorActivityUplotChartProps {
   ticker: string;
   latencyMs?: number | null;
   latencySource?: string;
+  onRenderReady?: () => void;
+  renderLatencyMs?: number | null;
 }
 
 export function InvestorActivityUplotChart({
@@ -25,6 +27,8 @@ export function InvestorActivityUplotChart({
   ticker,
   latencyMs,
   latencySource,
+  onRenderReady,
+  renderLatencyMs,
 }: InvestorActivityUplotChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<uPlot | null>(null);
@@ -92,6 +96,7 @@ export function InvestorActivityUplotChart({
     );
 
     chartRef.current = chart;
+    onRenderReady?.();
 
     const resizeObserver = new ResizeObserver(() => {
       if (chartRef.current && containerRef.current) {
@@ -107,7 +112,7 @@ export function InvestorActivityUplotChart({
       chartRef.current?.destroy();
       chartRef.current = null;
     };
-  }, [data, ticker]);
+  }, [data, onRenderReady, ticker]);
 
   if (data.length === 0) {
     return (
@@ -117,7 +122,7 @@ export function InvestorActivityUplotChart({
           <CardDescription>No activity data available</CardDescription>
           {latencySource && (
             <CardAction>
-              <LatencyBadge ms={latencyMs ?? null} source={latencySource} />
+              <LatencyBadge ms={latencyMs ?? null} source={latencySource} renderMs={renderLatencyMs} />
             </CardAction>
           )}
         </CardHeader>

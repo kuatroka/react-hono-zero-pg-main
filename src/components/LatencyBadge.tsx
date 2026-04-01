@@ -12,12 +12,23 @@ export function LatencyBadge({
   ms,
   source,
   className,
+  label,
+  renderMs,
 }: {
   ms: number | null;
   source: string;
   className?: string;
+  label?: string;
+  renderMs?: number | null;
 }) {
-  const label = ms == null ? "…" : formatLatencyMs(ms);
+  const valueLabel = ms == null ? "…" : formatLatencyMs(ms);
+  const renderLabel = renderMs == null ? '…' : formatLatencyMs(renderMs);
+  const shortSource = source.replace(/^Zero: /, 'zero.').split('.', 2).join('.');
+  const badgeLabel = renderMs !== undefined
+    ? `${shortSource} - data: ${valueLabel} - render: ${renderLabel}`
+    : label
+      ? `${shortSource} - ${label}: ${valueLabel}`
+      : `${shortSource}: ${valueLabel}`;
 
   return (
     <Badge
@@ -28,7 +39,7 @@ export function LatencyBadge({
       )}
       title={ms == null ? source : `${source} (${formatLatencyMs(ms)})`}
     >
-      {label} ({source})
+      {badgeLabel}
     </Badge>
   );
 }

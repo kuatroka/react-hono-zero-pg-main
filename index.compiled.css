@@ -587,6 +587,9 @@
   .w-32 {
     width: calc(var(--spacing) * 32);
   }
+  .w-52 {
+    width: calc(var(--spacing) * 52);
+  }
   .w-128 {
     width: calc(var(--spacing) * 128);
   }
@@ -1891,6 +1894,11 @@
       @supports (color: color-mix(in lab, red, red)) {
         background-color: color-mix(in oklab, var(--background) 80%, transparent);
       }
+    }
+  }
+  .sm\:w-64 {
+    @media (width >= 40rem) {
+      width: calc(var(--spacing) * 64);
     }
   }
   .sm\:w-96 {

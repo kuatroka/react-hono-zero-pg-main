@@ -24,6 +24,8 @@ interface InvestorActivityEchartsChartProps {
   ticker: string;
   latencyMs?: number | null;
   latencySource?: string;
+  onRenderReady?: () => void;
+  renderLatencyMs?: number | null;
 }
 
 type TooltipParam = {
@@ -37,6 +39,8 @@ export const InvestorActivityEchartsChart = memo(function InvestorActivityEchart
   ticker,
   latencyMs,
   latencySource,
+  onRenderReady,
+  renderLatencyMs,
 }: InvestorActivityEchartsChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<echarts.EChartsType | null>(null);
@@ -180,6 +184,7 @@ export const InvestorActivityEchartsChart = memo(function InvestorActivityEchart
         notMerge: true,
         lazyUpdate: true,
       });
+      onRenderReady?.();
     };
 
     syncChart();
@@ -190,7 +195,7 @@ export const InvestorActivityEchartsChart = memo(function InvestorActivityEchart
 
     observer.observe(container);
     return () => observer.disconnect();
-  }, [option]);
+  }, [onRenderReady, option]);
 
   useEffect(() => {
     return () => {
@@ -214,7 +219,7 @@ export const InvestorActivityEchartsChart = memo(function InvestorActivityEchart
           <CardDescription>No activity data available</CardDescription>
           {latencySource && (
             <CardAction>
-              <LatencyBadge ms={latencyMs ?? null} source={latencySource} />
+              <LatencyBadge ms={latencyMs ?? null} source={latencySource} renderMs={renderLatencyMs} />
             </CardAction>
           )}
         </CardHeader>
