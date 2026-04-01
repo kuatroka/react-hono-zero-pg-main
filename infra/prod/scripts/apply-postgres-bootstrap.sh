@@ -39,6 +39,20 @@ SELECT CASE
     WHERE contype = 'p'
       AND conrelid = 'serving.cusip_quarter_investor_activity_detail'::regclass
   )
+   AND EXISTS (
+    SELECT 1
+    FROM pg_indexes
+    WHERE schemaname = 'serving'
+      AND tablename = 'cusip_quarter_investor_activity'
+      AND indexname = 'idx_cusip_quarter_activity_cusip_quarter'
+  )
+   AND EXISTS (
+    SELECT 1
+    FROM pg_indexes
+    WHERE schemaname = 'serving'
+      AND tablename = 'cusip_quarter_investor_activity'
+      AND indexname = 'idx_cusip_quarter_activity_ticker_quarter'
+  )
   THEN 'ready'
   ELSE 'repair'
 END;

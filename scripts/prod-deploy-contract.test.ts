@@ -28,7 +28,7 @@ describe("production deploy contracts", () => {
     expect(deployScript).toContain('Skipping Caddy reload because passwordless sudo is unavailable.');
   });
 
-  test("postgres bootstrap skips the heavy zero-sync repair migration once both serving tables already have primary keys", () => {
+  test("postgres bootstrap skips the heavy zero-sync repair migration only after investor activity tables and lookup indexes are Zero-ready", () => {
     const bootstrapScript = readProjectFile("infra/prod/scripts/apply-postgres-bootstrap.sh");
 
     expect(bootstrapScript).toContain("should_skip_investor_activity_zero_sync_migration()");
@@ -36,6 +36,8 @@ describe("production deploy contracts", () => {
     expect(bootstrapScript).toContain('psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER}" --dbname "${POSTGRES_DB}" "$@"');
     expect(bootstrapScript).toContain("serving.cusip_quarter_investor_activity");
     expect(bootstrapScript).toContain("serving.cusip_quarter_investor_activity_detail");
+    expect(bootstrapScript).toContain("idx_cusip_quarter_activity_cusip_quarter");
+    expect(bootstrapScript).toContain("idx_cusip_quarter_activity_ticker_quarter");
     expect(bootstrapScript).toContain('Skipping 0010_enable_investor_activity_zero_sync.sql because serving investor activity tables are already Zero-ready.');
     expect(bootstrapScript).toContain('if [[ "$(basename "$sql_file")" == "0010_enable_investor_activity_zero_sync.sql" ]] && should_skip_investor_activity_zero_sync_migration; then');
   });
