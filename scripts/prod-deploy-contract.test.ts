@@ -32,6 +32,8 @@ describe("production deploy contracts", () => {
     const bootstrapScript = readProjectFile("infra/prod/scripts/apply-postgres-bootstrap.sh");
 
     expect(bootstrapScript).toContain("should_skip_investor_activity_zero_sync_migration()");
+    expect(bootstrapScript).toContain('psql_exec -tA <<\'SQL\'');
+    expect(bootstrapScript).toContain('psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER}" --dbname "${POSTGRES_DB}" "$@"');
     expect(bootstrapScript).toContain("serving.cusip_quarter_investor_activity");
     expect(bootstrapScript).toContain("serving.cusip_quarter_investor_activity_detail");
     expect(bootstrapScript).toContain('Skipping 0010_enable_investor_activity_zero_sync.sql because serving investor activity tables are already Zero-ready.');

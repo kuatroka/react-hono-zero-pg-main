@@ -20,7 +20,7 @@ compose() {
 }
 
 psql_exec() {
-  compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER}" --dbname "${POSTGRES_DB}"
+  compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER}" --dbname "${POSTGRES_DB}" "$@"
 }
 
 should_skip_investor_activity_zero_sync_migration() {
