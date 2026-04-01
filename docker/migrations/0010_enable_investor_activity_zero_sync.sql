@@ -35,6 +35,9 @@ BEGIN
     ) THEN
       EXECUTE 'ALTER TABLE serving.cusip_quarter_investor_activity ADD PRIMARY KEY (id)';
     END IF;
+
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_cusip_quarter_activity_cusip_quarter ON serving.cusip_quarter_investor_activity (cusip, quarter)';
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_cusip_quarter_activity_ticker_quarter ON serving.cusip_quarter_investor_activity (ticker, quarter)';
   END IF;
 
   IF EXISTS (

@@ -33,4 +33,22 @@ describe("serving Zero-sync schema contract", () => {
       "serving.cusip_quarter_investor_activity_detail must have a primary key for Zero sync"
     );
   });
+
+  test("investor activity zero-sync path preserves the secondary lookup indexes needed for warm local-like chart latency", () => {
+    const migration = readProjectFile("docker/migrations/0010_enable_investor_activity_zero_sync.sql");
+    const readiness = readProjectFile("infra/prod/sql/verify-zero-readiness.sql");
+
+    expect(migration).toContain(
+      "CREATE INDEX IF NOT EXISTS idx_cusip_quarter_activity_cusip_quarter ON serving.cusip_quarter_investor_activity (cusip, quarter)"
+    );
+    expect(migration).toContain(
+      "CREATE INDEX IF NOT EXISTS idx_cusip_quarter_activity_ticker_quarter ON serving.cusip_quarter_investor_activity (ticker, quarter)"
+    );
+    expect(readiness).toContain(
+      "serving.cusip_quarter_investor_activity must have idx_cusip_quarter_activity_cusip_quarter for Zero chart lookups"
+    );
+    expect(readiness).toContain(
+      "serving.cusip_quarter_investor_activity must have idx_cusip_quarter_activity_ticker_quarter for Zero chart lookups"
+    );
+  });
 });

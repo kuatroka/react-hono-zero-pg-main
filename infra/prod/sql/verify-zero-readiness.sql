@@ -45,6 +45,26 @@ BEGIN
     RAISE EXCEPTION 'serving.cusip_quarter_investor_activity must have a primary key for Zero sync';
   END IF;
 
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_indexes
+    WHERE schemaname = 'serving'
+      AND tablename = 'cusip_quarter_investor_activity'
+      AND indexname = 'idx_cusip_quarter_activity_cusip_quarter'
+  ) THEN
+    RAISE EXCEPTION 'serving.cusip_quarter_investor_activity must have idx_cusip_quarter_activity_cusip_quarter for Zero chart lookups';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_indexes
+    WHERE schemaname = 'serving'
+      AND tablename = 'cusip_quarter_investor_activity'
+      AND indexname = 'idx_cusip_quarter_activity_ticker_quarter'
+  ) THEN
+    RAISE EXCEPTION 'serving.cusip_quarter_investor_activity must have idx_cusip_quarter_activity_ticker_quarter for Zero chart lookups';
+  END IF;
+
   IF to_regclass('serving.cusip_quarter_investor_activity_detail') IS NULL THEN
     RAISE EXCEPTION 'serving.cusip_quarter_investor_activity_detail is missing';
   END IF;
