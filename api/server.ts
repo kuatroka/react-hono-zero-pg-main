@@ -99,14 +99,23 @@ function serializeRuntimeConfig(config: AppRuntimeConfig) {
   return JSON.stringify(config).replace(/</g, "\\u003c");
 }
 
-function injectRuntimeConfig(html: string, config: AppRuntimeConfig) {
-  const configScript = `<script>window.__APP_CONFIG__=${serializeRuntimeConfig(config)};</script>`;
-
-  if (html.includes("</head>")) {
-    return html.replace("</head>", `  ${configScript}\n  </head>`);
+function stripReactScan(html: string) {
+  if (process.env.NODE_ENV !== "production") {
+    return html;
   }
 
-  return html.replace("<body>", `<body>\n    ${configScript}`);
+  return html.replace(/\s*(?:<!--\s*react scan\s*-->)?\s*<script[^>]*src="https:\/\/unpkg\.com\/react-scan\/dist\/auto\.global\.js"[^>]*><\/script>\s*/i, "\n");
+}
+
+function injectRuntimeConfig(html: string, config: AppRuntimeConfig) {
+  const configScript = `<script>window.__APP_CONFIG__=${serializeRuntimeConfig(config)};</script>`;
+  const sanitizedHtml = stripReactScan(html);
+
+  if (sanitizedHtml.includes("</head>")) {
+    return sanitizedHtml.replace("</head>", `  ${configScript}\n  </head>`);
+  }
+
+  return sanitizedHtml.replace("<body>", `<body>\n    ${configScript}`);
 }
 
 async function serveIndexHtml(filePath: string) {

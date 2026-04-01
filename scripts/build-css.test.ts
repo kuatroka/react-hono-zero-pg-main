@@ -33,6 +33,13 @@ describe("build-css script", () => {
     expect(source).toContain('"components.json"');
   });
 
+  test("build script loads PostCSS plugins without CommonJS require calls", () => {
+    const source = readFileSync(join(import.meta.dir, "build-css.ts"), "utf8");
+
+    expect(source).not.toContain("require(");
+    expect(source).toContain("await import(pluginName)");
+  });
+
   test("watch mode uses recursive filesystem watchers across source and config inputs", async () => {
     const watchedTargets: string[] = [];
     const recursiveFlags: boolean[] = [];

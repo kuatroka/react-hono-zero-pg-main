@@ -184,8 +184,10 @@ describe("performance contracts", () => {
     const outerComponent = zeroVirtualTable.split("function ZeroVirtualDataTableInner")[1] ?? "";
 
     expect(zeroVirtualTable).toContain("memo(function ZeroVirtualTableToolbar");
-    expect(zeroVirtualTable).toContain("memo(function ZeroVirtualTableHeader");
-    expect(zeroVirtualTable).toContain("memo(function ZeroVirtualTableViewport");
+    expect(zeroVirtualTable).toContain("function ZeroVirtualTableHeaderInner");
+    expect(zeroVirtualTable).toContain("const ZeroVirtualTableHeader = memo(");
+    expect(zeroVirtualTable).toContain("function ZeroVirtualTableViewportInner");
+    expect(zeroVirtualTable).toContain("const ZeroVirtualTableViewport = memo(");
     expect(zeroVirtualTable).toContain("onReadyChange");
     expect(outerComponent).not.toContain("useZeroVirtualizer<");
   });

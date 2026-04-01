@@ -18,12 +18,19 @@ const watchTargets = [
 
 export { fs };
 
+async function loadPostcssPlugin(pluginName: string) {
+  const importedPlugin = await import(pluginName);
+  return importedPlugin.default ?? importedPlugin;
+}
+
 export async function buildCss() {
   const source = await readFile(inputPath, "utf8");
-  const plugins = Object.entries(postcssConfig.plugins ?? {}).map(([pluginName, options]) => {
-    const plugin = pluginName === "autoprefixer" ? require("autoprefixer") : require(pluginName);
-    return plugin(options);
-  });
+  const plugins = await Promise.all(
+    Object.entries(postcssConfig.plugins ?? {}).map(async ([pluginName, options]) => {
+      const plugin = await loadPostcssPlugin(pluginName);
+      return plugin(options);
+    }),
+  );
 
   const result = await postcss(plugins).process(source, {
     from: inputPath,

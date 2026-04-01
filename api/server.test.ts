@@ -161,4 +161,22 @@ describe("createSpaFetchHandler", () => {
     expect(html).toContain("https://sync.example.com");
     expect(html).toContain("https://app.example.com/api/zero/get-queries");
   });
+
+  test("strips react-scan from the production SPA shell", async () => {
+    process.env.NODE_ENV = "production";
+
+    const distDir = makeTempDir();
+    writeFileSync(
+      path.join(distDir, "index.html"),
+      '<html><head></head><body><script src="https://unpkg.com/react-scan/dist/auto.global.js"></script><div id="root"></div></body></html>',
+    );
+
+    const handler = createSpaFetchHandler({ distDir });
+    const response = await handler(new Request("http://localhost/"));
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(html).not.toContain("react-scan");
+    expect(html).toContain("window.__APP_CONFIG__");
+  });
 });
