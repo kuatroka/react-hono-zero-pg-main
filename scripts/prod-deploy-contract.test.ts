@@ -27,4 +27,14 @@ describe("production deploy contracts", () => {
     expect(deployScript).toContain('sudo systemctl reload caddy');
     expect(deployScript).toContain('Skipping Caddy reload because passwordless sudo is unavailable.');
   });
+
+  test("postgres bootstrap skips the heavy zero-sync repair migration once both serving tables already have primary keys", () => {
+    const bootstrapScript = readProjectFile("infra/prod/scripts/apply-postgres-bootstrap.sh");
+
+    expect(bootstrapScript).toContain("should_skip_investor_activity_zero_sync_migration()");
+    expect(bootstrapScript).toContain("serving.cusip_quarter_investor_activity");
+    expect(bootstrapScript).toContain("serving.cusip_quarter_investor_activity_detail");
+    expect(bootstrapScript).toContain('Skipping 0010_enable_investor_activity_zero_sync.sql because serving investor activity tables are already Zero-ready.');
+    expect(bootstrapScript).toContain('if [[ "$(basename "$sql_file")" == "0010_enable_investor_activity_zero_sync.sql" ]] && should_skip_investor_activity_zero_sync_migration; then');
+  });
 });
