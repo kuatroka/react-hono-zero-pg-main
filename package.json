@@ -22,9 +22,12 @@
     "db:seed": "bash -c 'set -a && source .env && set +a && bun run scripts/db-seed.ts'",
     "test:zero-preflight": "bun test scripts/zero-preflight.test.mjs",
     "test:startup-shell": "bun scripts/check-startup-shell.ts",
+    "test:performance-contract": "bun test tests/performance/performance-contract.test.ts",
     "build:css": "bun scripts/build-css.ts",
     "build": "bun run tsc -b && bun run build:css && bun scripts/build-app.ts",
-    "lint": "bunx --bun eslint ."
+    "lint": "bunx --bun eslint .",
+    "perf:run": "bun run tests/performance/run-benchmarks.ts",
+    "perf:compare": "bun run tests/performance/run-benchmarks.ts --compare"
   },
   "dependencies": {
     "@nivo/bar": "^0.99.0",

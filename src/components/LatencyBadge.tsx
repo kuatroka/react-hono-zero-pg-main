@@ -1,12 +1,9 @@
 import { Badge } from "@/components/ui/badge";
+import {
+  createLegacyPerfTelemetry,
+  type PerfTelemetry,
+} from "@/lib/perf/telemetry";
 import { cn } from "@/lib/utils";
-
-function formatLatencyMs(ms: number) {
-  if (!Number.isFinite(ms)) return "—";
-  if (ms < 10) return `${ms.toFixed(2)}ms`;
-  if (ms < 100) return `${ms.toFixed(1)}ms`;
-  return `${ms.toFixed(0)}ms`;
-}
 
 export function LatencyBadge({
   ms,
@@ -14,32 +11,35 @@ export function LatencyBadge({
   className,
   label,
   renderMs,
+  telemetry,
 }: {
-  ms: number | null;
-  source: string;
+  ms?: number | null;
+  source?: string;
   className?: string;
   label?: string;
   renderMs?: number | null;
+  telemetry?: PerfTelemetry | null;
 }) {
-  const valueLabel = ms == null ? "…" : formatLatencyMs(ms);
-  const renderLabel = renderMs == null ? '…' : formatLatencyMs(renderMs);
-  const shortSource = source.replace(/^Zero: /, 'zero.').split('.', 2).join('.');
-  const badgeLabel = renderMs !== undefined
-    ? `${shortSource} - data: ${valueLabel} - render: ${renderLabel}`
-    : label
-      ? `${shortSource} - ${label}: ${valueLabel}`
-      : `${shortSource}: ${valueLabel}`;
+  const resolvedTelemetry = telemetry ?? createLegacyPerfTelemetry({
+    label,
+    ms: ms ?? null,
+    renderMs,
+    source: source ?? 'api:pg',
+  });
+  const { ms: resolvedMs, primaryLine, secondaryLine } = resolvedTelemetry;
 
   return (
     <Badge
       variant="secondary"
       className={cn(
-        "font-mono font-medium text-[11px] leading-none px-2 py-1",
+        "font-mono font-medium text-[11px] leading-none px-2 py-1 shrink-0 whitespace-nowrap",
+        secondaryLine ? 'flex flex-col items-start gap-0.5 py-1.5 leading-tight whitespace-nowrap' : undefined,
         className
       )}
-      title={ms == null ? source : `${source} (${formatLatencyMs(ms)})`}
+      title={resolvedMs == null ? primaryLine : `${primaryLine} (${resolvedMs.toFixed(2)}ms)`}
     >
-      {badgeLabel}
+      <span>{primaryLine}</span>
+      {secondaryLine ? <span>{secondaryLine}</span> : null}
     </Badge>
   );
 }
