@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@rocicorp/zero/react';
 import { LatencyBadge } from '@/components/LatencyBadge';
 import { useLatencyMs } from '@/lib/latency';
+import { createLegacyPerfTelemetry, createPerfTelemetry } from '@/lib/perf/telemetry';
 import { queries } from '@/zero/queries';
 import { PRELOAD_TTL } from '@/zero-preload';
 import { InvestorActivityUplotChart } from '@/components/charts/InvestorActivityUplotChart';
@@ -56,23 +57,31 @@ export function AssetDetailPage({ onReady }: { onReady: () => void }) {
     isReady: activityReady,
     resetKey: hasCusip ? `activity:${cusip ?? ''}` : `activity:${code ?? ''}`,
   });
-  const [uplotRenderReady, setUplotRenderReady] = useState(false);
-  const [echartsRenderReady, setEchartsRenderReady] = useState(false);
-  const uplotRenderLatencyMs = useLatencyMs({
-    isReady: uplotRenderReady,
-    resetKey: `${record?.id ?? 'asset'}:uplot:${activityRows.length}`,
-    enabled: activityRows.length > 0,
+  const [uplotRenderLatencyMs, setUplotRenderLatencyMs] = useState<number | null>(null);
+  const [echartsRenderLatencyMs, setEchartsRenderLatencyMs] = useState<number | null>(null);
+  const assetTelemetry = createLegacyPerfTelemetry({
+    label: 'data',
+    ms: assetLatencyMs,
+    source: assetSource,
   });
-  const echartsRenderLatencyMs = useLatencyMs({
-    isReady: echartsRenderReady,
-    resetKey: `${record?.id ?? 'asset'}:echarts:${activityRows.length}`,
-    enabled: activityRows.length > 0,
+  const uplotTelemetry = createPerfTelemetry({
+    label: 'investorActivity: data',
+    ms: activityDataLatencyMs,
+    secondaryLabel: 'investorActivity: uPlot render',
+    secondaryMs: uplotRenderLatencyMs,
+    source: 'zero-client',
   });
-  const activitySource = hasCusip ? 'Zero: investorActivity.byCusip' : 'Zero: investorActivity.byTicker';
+  const echartsTelemetry = createPerfTelemetry({
+    label: 'investorActivity: data',
+    ms: activityDataLatencyMs,
+    secondaryLabel: 'investorActivity: ECharts render',
+    secondaryMs: echartsRenderLatencyMs,
+    source: 'zero-client',
+  });
 
   useEffect(() => {
-    setUplotRenderReady(false);
-    setEchartsRenderReady(false);
+    setUplotRenderLatencyMs(null);
+    setEchartsRenderLatencyMs(null);
   }, [activityRows.length, record?.id]);
 
   // Signal ready when data is available (from cache or server)
@@ -100,7 +109,7 @@ export function AssetDetailPage({ onReady }: { onReady: () => void }) {
         <div className="mb-6">
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-3xl font-bold">{record.assetName}</h1>
-            <LatencyBadge ms={assetLatencyMs} source={assetSource} label="data" />
+            <LatencyBadge telemetry={assetTelemetry} />
           </div>
         </div>
         <div className="space-y-3 text-lg">
@@ -124,18 +133,14 @@ export function AssetDetailPage({ onReady }: { onReady: () => void }) {
           <InvestorActivityUplotChart
             data={activityRows}
             ticker={record.asset}
-            latencyMs={activityDataLatencyMs}
-            latencySource={activitySource}
-            onRenderReady={() => setUplotRenderReady(true)}
-            renderLatencyMs={uplotRenderLatencyMs}
+            telemetry={uplotTelemetry}
+            onRenderReady={setUplotRenderLatencyMs}
           />
           <InvestorActivityEchartsChart
             data={activityRows}
             ticker={record.asset}
-            latencyMs={activityDataLatencyMs}
-            latencySource={activitySource}
-            onRenderReady={() => setEchartsRenderReady(true)}
-            renderLatencyMs={echartsRenderLatencyMs}
+            telemetry={echartsTelemetry}
+            onRenderReady={setEchartsRenderLatencyMs}
           />
         </div>
       </div>

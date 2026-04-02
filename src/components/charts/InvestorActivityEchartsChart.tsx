@@ -8,6 +8,8 @@ import { LegacyGridContainLabel } from "echarts/features";
 import { CanvasRenderer } from "echarts/renderers";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LatencyBadge } from "@/components/LatencyBadge";
+import { resolveLatencyMs } from "@/lib/latency";
+import type { PerfTelemetry } from "@/lib/perf/telemetry";
 import type { CusipQuarterInvestorActivity } from "@/schema";
 
 echarts.use([
@@ -22,10 +24,8 @@ echarts.use([
 interface InvestorActivityEchartsChartProps {
   data: readonly CusipQuarterInvestorActivity[];
   ticker: string;
-  latencyMs?: number | null;
-  latencySource?: string;
-  onRenderReady?: () => void;
-  renderLatencyMs?: number | null;
+  telemetry?: PerfTelemetry;
+  onRenderReady?: (renderLatencyMs: number) => void;
 }
 
 type TooltipParam = {
@@ -37,10 +37,8 @@ type TooltipParam = {
 export const InvestorActivityEchartsChart = memo(function InvestorActivityEchartsChart({
   data,
   ticker,
-  latencyMs,
-  latencySource,
+  telemetry,
   onRenderReady,
-  renderLatencyMs,
 }: InvestorActivityEchartsChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<echarts.EChartsType | null>(null);
@@ -164,6 +162,22 @@ export const InvestorActivityEchartsChart = memo(function InvestorActivityEchart
     const container = containerRef.current;
     if (!container || !option) return;
 
+    let hasReportedRender = false;
+    const renderStartMs = performance.now();
+
+    const handleChartFinished = () => {
+      if (hasReportedRender) {
+        return;
+      }
+
+      hasReportedRender = true;
+      onRenderReady?.(resolveLatencyMs(renderStartMs));
+
+      if (chartRef.current && !chartRef.current.isDisposed()) {
+        chartRef.current.off("finished", handleChartFinished);
+      }
+    };
+
     const syncChart = () => {
       const width = container.clientWidth || container.getBoundingClientRect().width;
       const height = container.clientHeight || container.getBoundingClientRect().height;
@@ -179,12 +193,15 @@ export const InvestorActivityEchartsChart = memo(function InvestorActivityEchart
             });
 
       chartRef.current = chart;
+      chart.off("finished", handleChartFinished);
+      if (!hasReportedRender) {
+        chart.on("finished", handleChartFinished);
+      }
       chart.resize({ width, height });
       chart.setOption(option, {
         notMerge: true,
-        lazyUpdate: true,
+        lazyUpdate: false,
       });
-      onRenderReady?.();
     };
 
     syncChart();
@@ -194,7 +211,13 @@ export const InvestorActivityEchartsChart = memo(function InvestorActivityEchart
     });
 
     observer.observe(container);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      const chart = chartRef.current;
+      if (chart && !chart.isDisposed()) {
+        chart.off("finished", handleChartFinished);
+      }
+    };
   }, [onRenderReady, option]);
 
   useEffect(() => {
@@ -217,9 +240,9 @@ export const InvestorActivityEchartsChart = memo(function InvestorActivityEchart
         <CardHeader>
           <CardTitle>Investor Activity for {ticker} (ECharts)</CardTitle>
           <CardDescription>No activity data available</CardDescription>
-          {latencySource && (
+          {telemetry && (
             <CardAction>
-              <LatencyBadge ms={latencyMs ?? null} source={latencySource} renderMs={renderLatencyMs} />
+              <LatencyBadge telemetry={telemetry} />
             </CardAction>
           )}
         </CardHeader>
@@ -234,9 +257,9 @@ export const InvestorActivityEchartsChart = memo(function InvestorActivityEchart
         <CardDescription>
           Alternative rendering using Apache ECharts with opened (green) vs closed (red) positions.
         </CardDescription>
-        {latencySource && (
+        {telemetry && (
           <CardAction>
-            <LatencyBadge ms={latencyMs ?? null} source={latencySource} />
+            <LatencyBadge telemetry={telemetry} />
           </CardAction>
         )}
       </CardHeader>

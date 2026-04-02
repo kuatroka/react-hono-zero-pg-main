@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 
+export function resolveLatencyMs(
+  startMs: number,
+  endMs = performance.now(),
+  minimumVisibleMs = 0.1,
+) {
+  return Math.max(endMs - startMs, minimumVisibleMs);
+}
+
 export function useLatencyMs({
   isReady,
   resetKey,
@@ -25,8 +33,7 @@ export function useLatencyMs({
       return;
     }
 
-    const elapsedMs = performance.now() - startRef.current;
-    setMs(Math.max(elapsedMs, minimumVisibleMs));
+    setMs(resolveLatencyMs(startRef.current, performance.now(), minimumVisibleMs));
   }, [enabled, isReady, minimumVisibleMs, ms]);
 
   return ms;

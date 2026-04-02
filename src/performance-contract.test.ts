@@ -179,7 +179,7 @@ describe("performance contracts", () => {
     expect(zeroVirtualTable).toContain("searchPlaceholder = 'Search...'");
     expect(zeroVirtualTable).toContain("history.replaceState({ ...window.history.state, [historyKey]: null }, '')");
     expect(zeroVirtualTable).toContain("if (event.key === 'Enter' && onEnter) {");
-    expect(zeroVirtualTable).toContain("<LatencyBadge ms={latencyMs} source={latencySource} />");
+    expect(zeroVirtualTable).toContain("<LatencyBadge telemetry={telemetry} />");
     expect(zeroVirtualTable).toContain("normalizedValue.length >= minSearchLength ? normalizedValue : ''");
     expect(zeroVirtualTable).toContain("requestAnimationFrame(() => {");
     expect(zeroVirtualTable).toContain("inputRef.current?.focus()");
@@ -222,40 +222,111 @@ describe("performance contracts", () => {
     expect(superinvestorsTable).not.toContain("CardDescription");
   });
 
-  test("asset detail surfaces separate data and render latency contracts for investor activity charts", () => {
+  test("asset detail surfaces shared two-line data and renderer latency telemetry for investor activity charts", () => {
     const assetDetail = readProjectFile("src/pages/AssetDetail.tsx");
     const latencyBadge = readProjectFile("src/components/LatencyBadge.tsx");
     const latencyHook = readProjectFile("src/lib/latency.ts");
+    const telemetryCore = readProjectFile("src/lib/perf/telemetry.ts");
     const echartsChart = readProjectFile("src/components/charts/InvestorActivityEchartsChart.tsx");
     const uplotChart = readProjectFile("src/components/charts/InvestorActivityUplotChart.tsx");
 
-    expect(assetDetail).toContain("const [uplotRenderReady, setUplotRenderReady] = useState(false)");
-    expect(assetDetail).toContain("const [echartsRenderReady, setEchartsRenderReady] = useState(false)");
+    expect(assetDetail).toContain("const [uplotRenderLatencyMs, setUplotRenderLatencyMs] = useState<number | null>(null)");
+    expect(assetDetail).toContain("const [echartsRenderLatencyMs, setEchartsRenderLatencyMs] = useState<number | null>(null)");
     expect(assetDetail).toContain("const activityDataLatencyMs = useLatencyMs({");
-    expect(assetDetail).toContain("onRenderReady={() => setUplotRenderReady(true)}");
-    expect(assetDetail).toContain("renderLatencyMs={uplotRenderLatencyMs}");
-    expect(assetDetail).toContain("onRenderReady={() => setEchartsRenderReady(true)}");
-    expect(assetDetail).toContain("renderLatencyMs={echartsRenderLatencyMs}");
-    expect(assetDetail).toContain("<LatencyBadge ms={assetLatencyMs} source={assetSource} label=\"data\" />");
+    expect(assetDetail).toContain("const uplotTelemetry = createPerfTelemetry({");
+    expect(assetDetail).toContain("secondaryLabel: 'investorActivity: uPlot render'");
+    expect(assetDetail).toContain("const echartsTelemetry = createPerfTelemetry({");
+    expect(assetDetail).toContain("secondaryLabel: 'investorActivity: ECharts render'");
+    expect(assetDetail).toContain("<LatencyBadge telemetry={assetTelemetry} />");
+    expect(assetDetail).toContain("telemetry={uplotTelemetry}");
+    expect(assetDetail).toContain("telemetry={echartsTelemetry}");
+    expect(assetDetail).toContain("onRenderReady={setUplotRenderLatencyMs}");
+    expect(assetDetail).toContain("onRenderReady={setEchartsRenderLatencyMs}");
 
-    expect(latencyBadge).toContain("label?: string");
-    expect(latencyBadge).toContain("renderMs?: number | null");
-    expect(latencyBadge).toContain("const shortSource = source.replace(/^Zero: /, 'zero.')");
-    expect(latencyBadge).toContain("renderMs !== undefined");
+    expect(latencyBadge).toContain("telemetry?: PerfTelemetry");
+    expect(latencyBadge).toContain("primaryLine");
+    expect(latencyBadge).toContain("secondaryLine");
+    expect(latencyBadge).toContain("shrink-0");
+    expect(latencyBadge).toContain("whitespace-nowrap");
+    expect(telemetryCore).toContain("secondaryLabel?: string");
+    expect(telemetryCore).toContain("secondaryLine = secondaryLabel");
 
+    expect(latencyHook).toContain("export function resolveLatencyMs(");
     expect(latencyHook).toContain("minimumVisibleMs = 0.1");
-    expect(latencyHook).toContain("setMs(Math.max(elapsedMs, minimumVisibleMs))");
+    expect(latencyHook).toContain("setMs(resolveLatencyMs(startRef.current, performance.now(), minimumVisibleMs))");
     expect(latencyHook).not.toContain("setMs(0)");
 
-    expect(echartsChart).toContain("onRenderReady?: () => void");
-    expect(echartsChart).toContain("renderLatencyMs?: number | null");
-    expect(echartsChart).toContain("onRenderReady?.()");
-    expect(echartsChart).toContain("<LatencyBadge ms={latencyMs ?? null} source={latencySource} renderMs={renderLatencyMs} />");
+    expect(echartsChart).toContain("telemetry?: PerfTelemetry");
+    expect(echartsChart).toContain("onRenderReady?: (renderLatencyMs: number) => void");
+    expect(echartsChart).toContain("const renderStartMs = performance.now()");
+    expect(echartsChart).toContain('onRenderReady?.(resolveLatencyMs(renderStartMs))');
+    expect(echartsChart).toContain('chart.on("finished", handleChartFinished)');
+    expect(echartsChart).toContain('chart.off("finished", handleChartFinished)');
+    expect(echartsChart).toContain("<LatencyBadge telemetry={telemetry} />");
 
-    expect(uplotChart).toContain("onRenderReady?: () => void");
-    expect(uplotChart).toContain("renderLatencyMs?: number | null");
-    expect(uplotChart).toContain("onRenderReady?.()");
-    expect(uplotChart).toContain("<LatencyBadge ms={latencyMs ?? null} source={latencySource} renderMs={renderLatencyMs} />");
+    expect(uplotChart).toContain("telemetry?: PerfTelemetry");
+    expect(uplotChart).toContain("onRenderReady?: (renderLatencyMs: number) => void");
+    expect(uplotChart).toContain("const renderStartMs = performance.now()");
+    expect(uplotChart).toContain("requestAnimationFrame(() => {");
+    expect(uplotChart).toContain("onRenderReadyRef.current?.(resolveLatencyMs(renderStartMs))");
+    expect(uplotChart).toContain("<LatencyBadge telemetry={telemetry} />");
+  });
+
+  test("table telemetry contracts use the shared three-source model and surface parent-card badges", () => {
+    const assetsTable = readProjectFile("src/pages/AssetsTable.tsx");
+    const superinvestorsTable = readProjectFile("src/pages/SuperinvestorsTable.tsx");
+    const zeroVirtualTable = readProjectFile("src/components/ZeroVirtualDataTable.tsx");
+    const latencyBadge = readProjectFile("src/components/LatencyBadge.tsx");
+    const telemetryCore = readProjectFile("src/lib/perf/telemetry.ts");
+
+    expect(telemetryCore).toContain("export type PerfSource = 'api:pg' | 'zero:cache' | 'zero-client'");
+    expect(latencyBadge).toContain("primaryLine");
+    expect(latencyBadge).toContain("secondaryLine");
+    expect(latencyBadge).not.toContain("source.replace(/^Zero: /");
+
+    expect(zeroVirtualTable).toContain("onTableTelemetryChange");
+    expect(zeroVirtualTable).toContain("onSearchTelemetryChange");
+    expect(zeroVirtualTable).toContain("tableTelemetry");
+    expect(zeroVirtualTable).toContain("searchTelemetry");
+    expect(zeroVirtualTable).toContain("searchTelemetryLabel = 'search'");
+    expect(zeroVirtualTable).toContain("tableTelemetryLabel = 'table'");
+    expect(zeroVirtualTable).toContain("const tableLatencyResetKey =");
+    expect(zeroVirtualTable).toContain("const searchLatencyResetKey =");
+    expect(zeroVirtualTable).toContain("const readyResetKey = `${tableLatencyResetKey}:${searchLatencyResetKey}`");
+    expect(zeroVirtualTable).toContain("const tableLatencyMs = useLatencyMs({");
+    expect(zeroVirtualTable).toContain("const searchLatencyMs = useLatencyMs({");
+    expect(zeroVirtualTable).toContain("label: tableTelemetryLabel");
+    expect(zeroVirtualTable).toContain("label: searchTelemetryLabel");
+    expect(zeroVirtualTable).toContain("readyCalledRef.current = false");
+    expect(zeroVirtualTable).toContain("useLayoutEffect(() => {");
+    expect(zeroVirtualTable).toContain("}, [readyResetKey]);");
+    expect(zeroVirtualTable).toContain("const isReady = rowsEmpty || complete || rowAt(0) !== undefined");
+    expect(zeroVirtualTable).toContain("readyResetKey");
+    expect(zeroVirtualTable).toContain("readyKey={readyResetKey}");
+    expect(zeroVirtualTable).toContain("onReadyChange(isReady)");
+    expect(zeroVirtualTable).toContain("}, [isReady, onReadyChange, readyKey]);");
+    expect(zeroVirtualTable).toContain("listContextParams");
+    expect(zeroVirtualTable).toContain("!onTableTelemetryChange ? <ZeroVirtualTableToolbar telemetry={tableTelemetry} /> : null");
+
+    expect(assetsTable).toContain("const [tableTelemetry, setTableTelemetry]");
+    expect(assetsTable).toContain("const [searchTelemetry, setSearchTelemetry]");
+    expect(assetsTable).toContain("onTableTelemetryChange={setTableTelemetry}");
+    expect(assetsTable).toContain("onSearchTelemetryChange={setSearchTelemetry}");
+    expect(assetsTable).toContain("<LatencyBadge telemetry={tableTelemetry} className=\"min-w-[11rem] justify-end\" />");
+    expect(assetsTable).toContain("<LatencyBadge telemetry={searchTelemetry} className=\"min-w-[11rem] justify-end\" />");
+    expect(assetsTable).toContain("tableTelemetryLabel=\"virtual table\"");
+    expect(assetsTable).toContain("searchTelemetryLabel=\"search\"");
+    expect(assetsTable).not.toContain("latencySource=\"Zero: assets.virtualPage\"");
+
+    expect(superinvestorsTable).toContain("const [tableTelemetry, setTableTelemetry]");
+    expect(superinvestorsTable).toContain("const [searchTelemetry, setSearchTelemetry]");
+    expect(superinvestorsTable).toContain("onTableTelemetryChange={setTableTelemetry}");
+    expect(superinvestorsTable).toContain("onSearchTelemetryChange={setSearchTelemetry}");
+    expect(superinvestorsTable).toContain("<LatencyBadge telemetry={tableTelemetry} className=\"min-w-[11rem] justify-end\" />");
+    expect(superinvestorsTable).toContain("<LatencyBadge telemetry={searchTelemetry} className=\"min-w-[11rem] justify-end\" />");
+    expect(superinvestorsTable).toContain("tableTelemetryLabel=\"virtual table\"");
+    expect(superinvestorsTable).toContain("searchTelemetryLabel=\"search\"");
+    expect(superinvestorsTable).not.toContain("latencySource=\"Zero: superinvestors.virtualPage\"");
   });
 
   test("app root does not wrap the router tree in StrictMode while using react-scan for render diagnostics", () => {

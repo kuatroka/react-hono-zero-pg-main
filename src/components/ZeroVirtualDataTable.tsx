@@ -11,6 +11,7 @@ import { LatencyBadge } from '@/components/LatencyBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLatencyMs } from '@/lib/latency';
+import { createLegacyPerfTelemetry, type PerfTelemetry } from '@/lib/perf/telemetry';
 import { cn } from '@/lib/utils';
 
 type SortDirection = 'asc' | 'desc';
@@ -132,21 +133,19 @@ export const ZeroVirtualTableSearchInput = memo(function ZeroVirtualTableSearchI
 ZeroVirtualTableSearchInput.displayName = 'ZeroVirtualTableSearchInput';
 
 interface ZeroVirtualTableToolbarProps {
-  latencyMs: number | null;
-  latencySource?: string;
+  telemetry?: PerfTelemetry | null;
 }
 
 const ZeroVirtualTableToolbar = memo(function ZeroVirtualTableToolbar({
-  latencyMs,
-  latencySource,
+  telemetry,
 }: ZeroVirtualTableToolbarProps) {
-  if (!latencySource) {
+  if (!telemetry) {
     return null;
   }
 
   return (
     <div className="flex items-center justify-end">
-      <LatencyBadge ms={latencyMs} source={latencySource} />
+      <LatencyBadge telemetry={telemetry} />
     </div>
   );
 });
@@ -334,6 +333,7 @@ interface ZeroVirtualTableViewportProps<
   listContextParams: ZeroVirtualListContext<TSortColumn>;
   onReadyChange: (isReady: boolean) => void;
   onRowFocus: (index: number) => void;
+  readyKey: string;
   rowHeight: number;
   toStartRow: (row: TRow) => TStartRow;
   visibleRowCount: number;
@@ -355,6 +355,7 @@ function ZeroVirtualTableViewportInner<
   listContextParams,
   onReadyChange,
   onRowFocus,
+  readyKey,
   rowHeight,
   toStartRow,
   visibleRowCount,
@@ -393,7 +394,7 @@ function ZeroVirtualTableViewportInner<
 
   useEffect(() => {
     onReadyChange(isReady);
-  }, [isReady, onReadyChange]);
+  }, [isReady, onReadyChange, readyKey]);
 
   useEffect(() => {
     if (focusedRowIndex < 0) {
@@ -505,8 +506,12 @@ interface ZeroVirtualDataTableProps<
   minSearchLength?: number;
   onKeyboardNavigationReady?: (navigation: ZeroVirtualTableKeyboardNavigation) => void;
   onReady?: () => void;
+  onSearchTelemetryChange?: (searchTelemetry: PerfTelemetry | null) => void;
   onSearchValueChange?: (value: string) => void;
+  onTableTelemetryChange?: (tableTelemetry: PerfTelemetry | null) => void;
+  searchTelemetryLabel?: string;
   rowHeight?: number;
+  tableTelemetryLabel?: string;
   searchDebounceMs?: number;
   searchPlaceholder?: string;
   searchValue?: string;
@@ -532,8 +537,12 @@ function ZeroVirtualDataTableInner<
   minSearchLength = DEFAULT_MIN_SEARCH_LENGTH,
   onKeyboardNavigationReady,
   onReady,
+  onSearchTelemetryChange,
   onSearchValueChange,
+  onTableTelemetryChange,
+  searchTelemetryLabel = 'search',
   rowHeight = DEFAULT_ROW_HEIGHT,
+  tableTelemetryLabel = 'table',
   searchDebounceMs = 150,
   searchPlaceholder = 'Search...',
   searchValue,
@@ -591,13 +600,42 @@ function ZeroVirtualDataTableInner<
     [committedSearch, sortColumn, sortDirection],
   );
 
-  const latencyResetKey = `${listContextParams.search}:${listContextParams.sortColumn}:${listContextParams.sortDirection}`;
+  const tableLatencyResetKey = `${listContextParams.sortColumn}:${listContextParams.sortDirection}`;
+  const searchLatencyResetKey = listContextParams.search;
+  const readyResetKey = `${tableLatencyResetKey}:${searchLatencyResetKey}`;
   const resolvedLatencySource =
     typeof latencySource === 'function' ? latencySource(listContextParams) : latencySource;
-  const activeLatencyMs = useLatencyMs({
+  const tableLatencyMs = useLatencyMs({
     isReady: isQueryReady,
-    resetKey: latencyResetKey,
+    resetKey: tableLatencyResetKey,
   });
+  const searchLatencyMs = useLatencyMs({
+    isReady: isQueryReady,
+    resetKey: searchLatencyResetKey,
+    enabled: Boolean(listContextParams.search),
+  });
+  const tableTelemetry = useMemo(() => {
+    if (!resolvedLatencySource || tableLatencyMs == null) {
+      return null;
+    }
+
+    return createLegacyPerfTelemetry({
+      label: tableTelemetryLabel,
+      ms: tableLatencyMs,
+      source: resolvedLatencySource,
+    });
+  }, [resolvedLatencySource, tableLatencyMs, tableTelemetryLabel]);
+  const searchTelemetry = useMemo(() => {
+    if (!resolvedLatencySource || !listContextParams.search || searchLatencyMs == null) {
+      return null;
+    }
+
+    return createLegacyPerfTelemetry({
+      label: searchTelemetryLabel,
+      ms: searchLatencyMs,
+      source: resolvedLatencySource,
+    });
+  }, [resolvedLatencySource, searchLatencyMs, searchTelemetryLabel, listContextParams.search]);
 
   useLayoutEffect(() => {
     if (initializedHistoryRef.current) {
@@ -610,9 +648,10 @@ function ZeroVirtualDataTableInner<
     }
   }, [historyKey]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    readyCalledRef.current = false;
     setIsQueryReady(false);
-  }, [latencyResetKey]);
+  }, [readyResetKey]);
 
   useEffect(() => {
     if (!isQueryReady || readyCalledRef.current) {
@@ -622,6 +661,14 @@ function ZeroVirtualDataTableInner<
     readyCalledRef.current = true;
     onReadyRef.current?.();
   }, [isQueryReady]);
+
+  useEffect(() => {
+    onTableTelemetryChange?.(tableTelemetry);
+  }, [listContextParams, onTableTelemetryChange, tableTelemetry]);
+
+  useEffect(() => {
+    onSearchTelemetryChange?.(searchTelemetry);
+  }, [listContextParams, onSearchTelemetryChange, searchTelemetry]);
 
   const handleSearchValueChange = useCallback((value: string) => {
     if (!isSearchControlled) {
@@ -718,10 +765,7 @@ function ZeroVirtualDataTableInner<
 
   return (
     <div className="space-y-4" onKeyDown={handleKeyDown}>
-      <ZeroVirtualTableToolbar
-        latencyMs={activeLatencyMs}
-        latencySource={resolvedLatencySource}
-      />
+      {!onTableTelemetryChange ? <ZeroVirtualTableToolbar telemetry={tableTelemetry} /> : null}
 
       <div ref={tableContainerRef} className="overflow-hidden rounded-lg border border-border bg-background">
         <ZeroVirtualTableHeaderSearch
@@ -758,6 +802,7 @@ function ZeroVirtualDataTableInner<
           listContextParams={listContextParams}
           onReadyChange={handleReadyChange}
           onRowFocus={setFocusedRowIndex}
+          readyKey={readyResetKey}
           rowHeight={rowHeight}
           toStartRow={toStartRow}
           visibleRowCount={visibleRowCount}

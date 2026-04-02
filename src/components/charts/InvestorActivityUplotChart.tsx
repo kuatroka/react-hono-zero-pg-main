@@ -11,31 +11,35 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LatencyBadge } from "@/components/LatencyBadge";
+import { resolveLatencyMs } from "@/lib/latency";
+import type { PerfTelemetry } from "@/lib/perf/telemetry";
 import type { CusipQuarterInvestorActivity } from "@/schema";
 
 interface InvestorActivityUplotChartProps {
   data: readonly CusipQuarterInvestorActivity[];
   ticker: string;
-  latencyMs?: number | null;
-  latencySource?: string;
-  onRenderReady?: () => void;
-  renderLatencyMs?: number | null;
+  telemetry?: PerfTelemetry;
+  onRenderReady?: (renderLatencyMs: number) => void;
 }
 
 export function InvestorActivityUplotChart({
   data,
   ticker,
-  latencyMs,
-  latencySource,
+  telemetry,
   onRenderReady,
-  renderLatencyMs,
 }: InvestorActivityUplotChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<uPlot | null>(null);
+  const onRenderReadyRef = useRef(onRenderReady);
+
+  useEffect(() => {
+    onRenderReadyRef.current = onRenderReady;
+  }, [onRenderReady]);
 
   useEffect(() => {
     if (!containerRef.current || data.length === 0) return;
 
+    const renderStartMs = performance.now();
     const labels = data.map((item) => item.quarter ?? "Unknown");
     const opened = data.map((item) => item.numOpen ?? 0);
     const closed = data.map((item) => -(item.numClose ?? 0));
@@ -96,7 +100,9 @@ export function InvestorActivityUplotChart({
     );
 
     chartRef.current = chart;
-    onRenderReady?.();
+    requestAnimationFrame(() => {
+      onRenderReadyRef.current?.(resolveLatencyMs(renderStartMs));
+    });
 
     const resizeObserver = new ResizeObserver(() => {
       if (chartRef.current && containerRef.current) {
@@ -112,7 +118,7 @@ export function InvestorActivityUplotChart({
       chartRef.current?.destroy();
       chartRef.current = null;
     };
-  }, [data, onRenderReady, ticker]);
+  }, [data, ticker]);
 
   if (data.length === 0) {
     return (
@@ -120,9 +126,9 @@ export function InvestorActivityUplotChart({
         <CardHeader>
           <CardTitle>Investor Activity for {ticker} (uPlot)</CardTitle>
           <CardDescription>No activity data available</CardDescription>
-          {latencySource && (
+          {telemetry && (
             <CardAction>
-              <LatencyBadge ms={latencyMs ?? null} source={latencySource} renderMs={renderLatencyMs} />
+              <LatencyBadge telemetry={telemetry} />
             </CardAction>
           )}
         </CardHeader>
@@ -137,9 +143,9 @@ export function InvestorActivityUplotChart({
         <CardDescription>
           Alternative rendering using uPlot with opened (green) vs closed (red) positions.
         </CardDescription>
-        {latencySource && (
+        {telemetry && (
           <CardAction>
-            <LatencyBadge ms={latencyMs ?? null} source={latencySource} />
+            <LatencyBadge telemetry={telemetry} />
           </CardAction>
         )}
       </CardHeader>
