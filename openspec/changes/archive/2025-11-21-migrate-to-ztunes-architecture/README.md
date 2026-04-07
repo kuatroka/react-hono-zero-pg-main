@@ -47,7 +47,7 @@ ZTunes (https://github.com/rocicorp/ztunes) is Rocicorp's reference implementati
 
 ```
 api/                          # Entire Hono server
-src/services/counter.ts       # REST API client
+src/servicesthe former charts demo route.ts       # REST API client
 src/services/quarters.ts      # REST API client
 src/schema.ts                 # Manual schema
 ```

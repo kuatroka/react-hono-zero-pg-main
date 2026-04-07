@@ -42,3 +42,4 @@ zero-schema.json
 # generated benchmark logs
 tests/performance/performance_logs/latest.arrow
 tests/performance/performance_logs/latest.arrow.json
+.omx/

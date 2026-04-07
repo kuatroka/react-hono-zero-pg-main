@@ -39,14 +39,14 @@ This feature mirrors the implementation from the reference repository (zero-soli
 - Add TypeScript types for new entities
 
 ### API Endpoints (Hono)
-- `GET /api/counter` - Fetch current counter value
-- `POST /api/counter` - Increment or decrement counter (body: `{ op: "inc" | "dec" }`)
+- `GET /apithe former charts demo route` - Fetch current counter value
+- `POST /apithe former charts demo route` - Increment or decrement counter (body: `{ op: "inc" | "dec" }`)
 - `GET /api/quarters` - Fetch quarterly data as chart series (labels and values arrays)
 
 ### Frontend Components
 - Add TanStack Router for client-side routing
-- Create `/counter` route with file-based routing structure
-- Create `CounterPage` component with:
+- Create `the former charts demo route` route with file-based routing structure
+- Create `former charts demo page` component with:
   - Increment/decrement buttons
   - Current counter value display
   - Loading and error states
@@ -68,7 +68,7 @@ This feature mirrors the implementation from the reference repository (zero-soli
   10. **Dual Axis** - Raw values vs MA(8) with separate Y-axes
 
 ### Services Layer
-- Create `src/services/counter.ts` for counter API calls
+- Create `src/servicesthe former charts demo route.ts` for counter API calls
 - Create `src/services/quarters.ts` for quarterly data fetching
 - Type-safe API response interfaces
 
@@ -78,7 +78,7 @@ This feature mirrors the implementation from the reference repository (zero-soli
 - Add button and card styling for counter UI
 
 ### Navigation
-- Add navigation link from home page to `/counter` route
+- Add navigation link from home page to `the former charts demo route` route
 - Add back link from counter page to home
 
 ## Impact
@@ -95,18 +95,18 @@ This feature mirrors the implementation from the reference repository (zero-soli
 #### New Files
 - `openspec/changes/add-quarterly-counter-charts/proposal.md` (this file)
 - `openspec/changes/add-quarterly-counter-charts/tasks.md` (implementation tasks)
-- `openspec/changes/add-quarterly-counter-charts/specs/counter-api/spec.md`
+- `openspec/changes/add-quarterly-counter-charts/specsthe former charts demo route-api/spec.md`
 - `openspec/changes/add-quarterly-counter-charts/specs/quarterly-charts/spec.md`
 - `docker/migrations/02_add_counter_quarters.sql` - Database migration
 - `src/routes/__root.tsx` - Root route layout
 - `src/routes/index.tsx` - Home route (existing App.tsx content)
-- `src/routes/counter.tsx` - Counter page route
-- `src/components/CounterPage.tsx` - Counter page component
+- `src/routesthe former charts demo route.tsx` - Counter page route
+- `the former charts demo component` - Counter page component
 - `src/components/charts/QuarterChart.tsx` - Chart wrapper component
 - `src/components/charts/factory.ts` - Chart factory with 10 types
-- `src/services/counter.ts` - Counter API service
+- `src/servicesthe former charts demo route.ts` - Counter API service
 - `src/services/quarters.ts` - Quarters API service
-- `api/routes/counter.ts` - Counter API handlers
+- `api/routesthe former charts demo route.ts` - Counter API handlers
 - `api/routes/quarters.ts` - Quarters API handlers
 
 #### Modified Files

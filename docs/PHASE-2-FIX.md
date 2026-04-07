@@ -103,8 +103,8 @@ bun run dev:ui         # Terminal 4
 - [ ] Can type in search box
 - [ ] Search results appear (try "Investor 1")
 - [ ] Click search result navigates to detail page
-- [ ] Navigate to /counter page
-- [ ] Counter functionality works
+- [ ] Navigate to the charts demo page
+- [ ] Legacy legacy charts functionality works
 - [ ] All 10 charts render
 - [ ] Navigate to /entities page
 - [ ] Table shows entities

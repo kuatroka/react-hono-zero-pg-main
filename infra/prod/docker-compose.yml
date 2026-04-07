@@ -33,20 +33,6 @@ services:
       - postgres_data:/var/lib/postgresql
       - ${APP_DATA_HOST_PATH:-/opt/dev/erudio_app/app_data}:/app_data:ro
       - ../../docker/init/01-setup-extensions.sql:/docker-entrypoint-initdb.d/01-setup-extensions.sql:ro
-      - ../../docker/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
-      - ../../docker/migrations/02_add_counter_quarters.sql:/docker-entrypoint-initdb.d/03-migration-counters.sql:ro
-      - ../../docker/migrations/03_add_entities.sql:/docker-entrypoint-initdb.d/04-migration-entities.sql:ro
-      - ../../docker/migrations/04_rollback_full_text_search.sql:/docker-entrypoint-initdb.d/05-migration-rollback.sql:ro
-      - ../../docker/migrations/05_add_user_counters.sql:/docker-entrypoint-initdb.d/06-migration-user-counters.sql:ro
-      - ../../docker/migrations/06_add_searches.sql:/docker-entrypoint-initdb.d/07-migration-searches.sql:ro
-      - ../../docker/migrations/07_add_superinvestors_assets_periods.sql:/docker-entrypoint-initdb.d/08-migration-superinvestors.sql:ro
-      - ../../docker/migrations/08_add_drilldown_function.sql:/docker-entrypoint-initdb.d/09-drilldown-function.sql:ro
-      - ../../docker/migrations/08_add_performance_indexes.sql:/docker-entrypoint-initdb.d/10-performance-indexes.sql:ro
-      - ../../docker/migrations/09_add_cusip_quarter_investor_activity.sql:/docker-entrypoint-initdb.d/11-cusip-activity.sql:ro
-      - ../../docker/migrations/10_add_cusip_quarter_investor_activity_detail.sql:/docker-entrypoint-initdb.d/12-cusip-activity-detail.sql:ro
-      - ../../docker/migrations/0004_ensure_zero_sync_key.sql:/docker-entrypoint-initdb.d/13-ensure-zero-sync-key.sql:ro
-      - ../../docker/migrations/0008_move_shared_tables_to_namespaces.sql:/docker-entrypoint-initdb.d/14-move-shared-tables-to-namespaces.sql:ro
-      - ../../docker/migrations/0009_create_zero_app_publication.sql:/docker-entrypoint-initdb.d/15-create-zero-publication.sql:ro
 
   app:
     image: ${APP_IMAGE:-fintellectus-app:latest}

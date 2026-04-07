@@ -279,7 +279,7 @@ App
 │       └── SearchDropdown
 ├── Routes
     ├── HomePage (existing)
-    ├── CounterPage (existing)
+    ├── former charts demo page (existing)
     ├── EntitiesList
     │   ├── FilterButtons
     │   └── EntitiesTable

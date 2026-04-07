@@ -1,20 +1,21 @@
-# Zero Hono React Counter uPlot
+# Zero Hono React Analytics
 
 A real-time analytics application demonstrating **Zero-sync** (Rocicorp's sync framework) with React, Bun, Hono, and PostgreSQL.
 
 ## Features
 
 - **🔍 Global Search:** Instant client-side search across 1000 investors and assets using Zero-sync
-- **📊 Counter & Charts:** Interactive counter with 10 different uPlot chart visualizations
 - **⚡ Real-time Sync:** Zero-sync keeps data synchronized across multiple browser tabs
 - **🎯 Modern Stack:** React 19 + Bun + Hono + PostgreSQL + React Router
 
 ## Hidden Routes
 
-The following routes are available but not linked in the navigation:
+The following routes are available but not linked in the top navigation:
 
-- **`/counter`** - Interactive counter with 10 different uPlot chart visualizations
 - **`/messages`** - Messages demo page with real-time sync features
+- **`/profile`** - User profile placeholder reached from the avatar
+- **`/assets/:code/:cusip`** - Asset detail page reached from the assets table
+- **`/superinvestors/:cik`** - Superinvestor detail page reached from the superinvestors table
 
 **📖 Documentation:**
 - [CURRENT-STATE.md](./CURRENT-STATE.md) - Architecture and implementation history
@@ -44,7 +45,7 @@ bun run dev:db-up
 bun run dev
 ```
 
-This will start the single Bun/Hono app server (serving the SPA and `/api/*` routes), the CSS watcher, and Zero cache concurrently with color-coded output.
+This now waits for Postgres, runs the tracked Drizzle migrations, seeds the idempotent bootstrap data, and then starts the single Bun/Hono app server (serving the SPA and `/api/*` routes), the CSS watcher, and Zero cache concurrently with color-coded output.
 
 ## Option 2: Install Zero in your own project
 
@@ -345,7 +346,7 @@ bun run dev:api
 **2. In a separate terminal, run the benchmark:**
 
 ```bash
-bunx autocannon -c 100 -d 30 http://localhost:4001/api/counter
+bunx autocannon -c 100 -d 30 http://localhost:4001/healthz
 ```
 
 This command runs a 30-second load test with 100 concurrent connections.

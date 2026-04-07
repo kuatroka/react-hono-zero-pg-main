@@ -8,7 +8,7 @@ Successfully migrated from **TanStack Router** to **React Router v7**.
 
 ### Code
 - ✅ `src/main.tsx` - Simplified routing (43 lines removed)
-- ✅ `src/components/CounterPage.tsx` - Updated navigation links
+- ✅ `the former charts demo component` - Updated navigation links
 - ✅ `package.json` - Updated dependencies
 
 ### Dependencies
@@ -43,7 +43,7 @@ bun run dev:ui
 
 ### Test these scenarios:
 1. Navigate to `http://localhost:5173/`
-2. Click "View Counter & Charts →"
+2. Click "Open legacy charts demo →"
 3. Verify counter and charts work
 4. Click "← Back to Home"
 5. Test browser back/forward buttons

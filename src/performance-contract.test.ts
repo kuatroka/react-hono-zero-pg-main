@@ -75,6 +75,17 @@ describe("performance contracts", () => {
     expect(globalNav).toContain("navigateTo(to)");
   });
 
+  test("theme switching lives in the global nav instead of route-level page headers", () => {
+    const globalNav = readProjectFile("src/components/GlobalNav.tsx");
+    const main = readProjectFile("src/main.tsx");
+
+    expect(globalNav).toContain("ThemeSwitcher");
+    expect(globalNav).toContain("<ThemeSwitcher />");
+    expect(main).not.toContain('import { ThemeSwitcher }');
+    expect(main).not.toContain("<ThemeSwitcher />");
+    expect(globalNav.indexOf('to="/profile"')).toBeLessThan(globalNav.indexOf("<ThemeSwitcher />"));
+  });
+
   test("router navigation is bridged once so global search can navigate without rerendering on route changes", () => {
     const main = readProjectFile("src/main.tsx");
     const navigationBridge = readProjectFile("src/lib/navigation.ts");

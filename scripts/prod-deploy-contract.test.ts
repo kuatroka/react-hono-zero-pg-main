@@ -31,14 +31,20 @@ describe("production deploy contracts", () => {
   test("postgres bootstrap skips the heavy zero-sync repair migration only after investor activity tables and lookup indexes are Zero-ready", () => {
     const bootstrapScript = readProjectFile("infra/prod/scripts/apply-postgres-bootstrap.sh");
 
-    expect(bootstrapScript).toContain("should_skip_investor_activity_zero_sync_migration()");
-    expect(bootstrapScript).toContain('psql_exec -tA <<\'SQL\'');
-    expect(bootstrapScript).toContain('psql -v ON_ERROR_STOP=1 -U "${POSTGRES_USER}" --dbname "${POSTGRES_DB}" "$@"');
-    expect(bootstrapScript).toContain("serving.cusip_quarter_investor_activity");
-    expect(bootstrapScript).toContain("serving.cusip_quarter_investor_activity_detail");
-    expect(bootstrapScript).toContain("idx_cusip_quarter_activity_cusip_quarter");
-    expect(bootstrapScript).toContain("idx_cusip_quarter_activity_ticker_quarter");
-    expect(bootstrapScript).toContain('Skipping 0010_enable_investor_activity_zero_sync.sql because serving investor activity tables are already Zero-ready.');
-    expect(bootstrapScript).toContain('if [[ "$(basename "$sql_file")" == "0010_enable_investor_activity_zero_sync.sql" ]] && should_skip_investor_activity_zero_sync_migration; then');
+    expect(bootstrapScript).toContain('compose run --rm --no-deps app "$@"');
+    expect(bootstrapScript).toContain("app_exec bun run db:migrate");
+    expect(bootstrapScript).toContain("app_exec bun run db:seed");
+    expect(bootstrapScript).toContain('psql_exec < "$REPO_ROOT/infra/prod/sql/verify-zero-readiness.sql"');
+    expect(bootstrapScript).not.toContain("enable-investor-activity-zero-sync.sql");
+    expect(bootstrapScript).not.toContain("should_skip_investor_activity_zero_sync_migration");
+  });
+
+  test("production compose keeps initdb focused on extension setup instead of replaying schema sql", () => {
+    const compose = readProjectFile("infra/prod/docker-compose.yml");
+
+    expect(compose).toContain("../../docker/init/01-setup-extensions.sql:/docker-entrypoint-initdb.d/01-setup-extensions.sql:ro");
+    expect(compose).not.toContain("/docker-entrypoint-initdb.d/02-seed.sql");
+    expect(compose).not.toContain("/docker-entrypoint-initdb.d/15-create-zero-publication.sql");
+    expect(compose).not.toContain("../../docker/migrations/0008_move_shared_tables_to_namespaces.sql");
   });
 });

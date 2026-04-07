@@ -5,7 +5,7 @@ import { ZeroProvider } from "@rocicorp/zero/react";
 import { schema, Schema } from "./schema";
 import Cookies from "js-cookie";
 import { decodeJwt } from "jose";
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,8 +29,6 @@ import { formatDate } from "./date";
 import { randInt } from "./rand";
 import { RepeatButton } from "./repeat-button";
 import { randomMessage } from "./test-data";
-import { CounterPage } from "@/components/CounterPage";
-import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { GlobalNav } from "@/components/GlobalNav";
 import { UserProfile } from "@/pages/UserProfile";
 import { AssetsTablePage } from "@/pages/AssetsTable";
@@ -103,7 +101,6 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<LandingPage onReady={onReady} />} />
           <Route path="/messages" element={<MessagesPage onReady={onReady} />} />
-          <Route path="/counter" element={<CounterPage onReady={onReady} />} />
           <Route path="/assets" element={<AssetsTablePage onReady={onReady} />} />
           <Route path="/assets/:code/:cusip" element={<AssetDetailPage onReady={onReady} />} />
           <Route path="/superinvestors" element={<SuperinvestorsTablePage onReady={onReady} />} />
@@ -189,7 +186,6 @@ function MessagesPage({ onReady }: { onReady: () => void }) {
             <LatencyBadge ms={directoryLatencyMs} source="Zero: users.list + mediums.list" />
           </div>
           <div className="flex items-center gap-4">
-            <ThemeSwitcher />
             {viewer && (
               <span className="text-sm text-muted-foreground">
                 Logged in as <strong className="text-foreground">{viewer.name}</strong>
@@ -256,12 +252,6 @@ function MessagesPage({ onReady }: { onReady: () => void }) {
           <span className="text-sm italic text-muted-foreground">
             (hold down buttons to repeat)
           </span>
-        </div>
-
-        <div className="flex justify-center">
-          <Button asChild>
-            <Link to="/counter">View Counter & Charts →</Link>
-          </Button>
         </div>
 
         <Card>

@@ -3,6 +3,7 @@ import type { MouseEvent, ReactNode } from 'react';
 import { useMatch, useResolvedPath } from 'react-router-dom';
 import { GlobalSearch } from './GlobalSearch';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { ThemeSwitcher } from './ThemeSwitcher';
 import { navigateTo } from '@/lib/navigation';
 
 interface RouterAnchorProps {
@@ -85,6 +86,7 @@ export const GlobalNav = memo(function GlobalNav() {
                 <AvatarFallback className="text-xs">U</AvatarFallback>
               </Avatar>
             </RouterAnchor>
+            <ThemeSwitcher />
           </div>
         </div>
       </div>

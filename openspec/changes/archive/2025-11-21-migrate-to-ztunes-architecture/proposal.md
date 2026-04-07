@@ -4,7 +4,7 @@
 
 The current application architecture violates Zero-sync best practices documented in our own `docs/ZERO-SYNC-PATTERNS.md`. Specifically:
 
-1. **Mixed Data Access Patterns**: Some data accessed via REST API (`/api/counter`, `/api/quarters`), some via Zero-sync (entities, messages)
+1. **Mixed Data Access Patterns**: Some data accessed via REST API (`/apithe former charts demo route`, `/api/quarters`), some via Zero-sync (entities, messages)
 2. **Manual Schema Maintenance**: `src/schema.ts` must be manually kept in sync with PostgreSQL schema, leading to potential drift
 3. **No Server-Side Validation**: Mutations happen directly from client without validation or permission enforcement
 4. **Security Vulnerabilities**: Client can spoof user IDs and bypass business logic
@@ -63,9 +63,9 @@ The ZTunes reference implementation (https://github.com/rocicorp/ztunes) demonst
 
 **BREAKING**: The following will be removed:
 - `api/` directory (Hono server)
-- `api/routes/counter.ts` (REST endpoint)
+- `api/routesthe former charts demo route.ts` (REST endpoint)
 - `api/routes/quarters.ts` (REST endpoint)
-- `src/services/counter.ts` (REST API client)
+- `src/servicesthe former charts demo route.ts` (REST API client)
 - `src/services/quarters.ts` (REST API client)
 - `src/schema.ts` (manual schema definition)
 - JWT-based authentication (`jose` library)
@@ -112,7 +112,7 @@ The ZTunes reference implementation (https://github.com/rocicorp/ztunes) demonst
 
 **Deleted:**
 - `api/` (entire directory)
-- `src/services/counter.ts`
+- `src/servicesthe former charts demo route.ts`
 - `src/services/quarters.ts`
 - `src/schema.ts`
 
@@ -133,7 +133,7 @@ The ZTunes reference implementation (https://github.com/rocicorp/ztunes) demonst
 - `.env`
 - `docker/docker-compose.yml`
 - `src/main.tsx`
-- `src/components/CounterPage.tsx`
+- `the former charts demo component`
 - `src/components/GlobalSearch.tsx`
 - All route components (migrate to TanStack Router)
 

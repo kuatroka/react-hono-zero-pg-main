@@ -87,9 +87,9 @@ export function AssetDetailPage({ onReady }: { onReady: () => void }) {
 }
 ```
 
-**Data-driven page** (CounterPage):
+**Data-driven page** (historical former charts demo page):
 ```typescript
-export function CounterPage({ onReady }: { onReady: () => void }) {
+export function HistoricalChartsDemoPage({ onReady }: { onReady: () => void }) {
   const [counterRows, counterResult] = useQuery(queries.counterCurrent("main"));
   const [quarters, quartersResult] = useQuery(queries.quartersSeries());
 
@@ -194,7 +194,7 @@ export function ListPage({onReady}: {onReady: () => void}) {
 - `src/pages/SuperinvestorsTable.tsx` - Added onReady prop and signal
 - `src/pages/AssetDetail.tsx` - Added onReady prop and signal
 - `src/pages/SuperinvestorDetail.tsx` - Added onReady prop and signal
-- `src/components/CounterPage.tsx` - Added onReady prop (immediate)
+- `the former charts demo component` - Added onReady prop (immediate)
 - `src/pages/UserProfile.tsx` - Added onReady prop (immediate)
 
 ## Result

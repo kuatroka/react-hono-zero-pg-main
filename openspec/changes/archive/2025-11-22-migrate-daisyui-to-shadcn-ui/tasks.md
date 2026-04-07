@@ -60,7 +60,7 @@
 - [x] 2.3.5 Remove `bg-base-100` classes (handled by Card component)
 - [x] 2.3.6 Test home page layout and interactions
 
-### 2.4 Migrate CounterPage Component
+### 2.4 Migrate former charts demo page Component
 - [x] 2.4.1 Import Button and Card from shadcn/ui
 - [x] 2.4.2 Replace all card elements with Card components
 - [x] 2.4.3 Replace all button elements with Button components

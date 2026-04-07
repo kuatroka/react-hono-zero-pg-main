@@ -8,7 +8,7 @@ shadcn/ui takes a different approach: it provides copy-paste component code buil
 
 ### Current DaisyUI Usage
 - **ThemeSwitcher.tsx**: Uses `swap`, `swap-rotate`, `swap-on`, `swap-off` classes
-- **CounterPage.tsx**: Uses `card`, `card-body`, `card-title`, `btn`, `btn-square`, `btn-primary`, `btn-secondary`, `join-item`
+- **former charts demo component**: Uses `card`, `card-body`, `card-title`, `btn`, `btn-square`, `btn-primary`, `btn-secondary`, `join-item`
 - **main.tsx**: Uses `btn`, `btn-sm`, `btn-outline`, `btn-primary`, `card`, `bg-base-100`, `card-body`, `card-title`
 - **repeat-button.tsx**: Uses `btn`, `btn-sm`
 
@@ -82,7 +82,7 @@ These hardcoded colors don't adapt to dark mode properly and should be replaced 
 2. Migrate ThemeSwitcher (smallest, isolated component)
 3. Migrate repeat-button (simple button wrapper)
 4. Migrate main.tsx (home page)
-5. Migrate CounterPage (most complex, uses multiple component types)
+5. Migrate former charts demo page (most complex, uses multiple component types)
 6. Migrate GlobalSearch (replace hardcoded colors with theme-aware components)
 7. Migrate CikSearch (replace hardcoded colors with theme-aware components)
 8. Update GlobalNav (replace hardcoded colors with CSS variables)
@@ -222,7 +222,7 @@ resolve: {
 3. Migrate main.tsx
    - Replace buttons and cards
    - Test home page layout
-4. Migrate CounterPage.tsx
+4. Migrate former charts demo component
    - Replace all buttons and cards
    - Test counter functionality and chart display
 

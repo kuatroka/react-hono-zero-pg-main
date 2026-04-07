@@ -9,20 +9,24 @@ function readProjectFile(relativePath: string) {
 }
 
 describe("serving Zero-sync schema contract", () => {
-  test("bootstrap migration repairs both investor activity tables", () => {
-    const migration = readProjectFile("docker/migrations/0010_enable_investor_activity_zero_sync.sql");
+  test("drizzle migration chain itself owns the investor activity zero-sync key requirements", () => {
+    const journal = readProjectFile("docker/migrations/meta/_journal.json");
+    const activityPkMigration = readProjectFile("docker/migrations/0001_large_selene.sql");
+    const detailPkMigration = readProjectFile("docker/migrations/0003_curvy_khan.sql");
+    const detailEnsureMigration = readProjectFile("docker/migrations/0004_ensure_zero_sync_key.sql");
+    const activityIndexMigration = readProjectFile("docker/migrations/0006_tense_living_mummy.sql");
 
-    expect(migration).toContain("serving.cusip_quarter_investor_activity");
-    expect(migration).toContain("serving.cusip_quarter_investor_activity_detail");
-    expect(migration).toContain(
-      "Cannot enable Zero sync for serving.cusip_quarter_investor_activity_detail: id contains NULL values"
-    );
-    expect(migration).toContain(
-      "ALTER TABLE serving.cusip_quarter_investor_activity_detail ALTER COLUMN id SET NOT NULL"
-    );
-    expect(migration).toContain(
-      "ALTER TABLE serving.cusip_quarter_investor_activity_detail ADD PRIMARY KEY (id)"
-    );
+    expect(journal).toContain('"tag": "0001_large_selene"');
+    expect(journal).toContain('"tag": "0003_curvy_khan"');
+    expect(journal).toContain('"tag": "0004_ensure_zero_sync_key"');
+    expect(journal).toContain('"tag": "0006_tense_living_mummy"');
+    expect(activityPkMigration).toContain('ALTER TABLE "cusip_quarter_investor_activity" ALTER COLUMN "id" SET NOT NULL');
+    expect(activityPkMigration).toContain('ALTER TABLE "cusip_quarter_investor_activity" ADD PRIMARY KEY ("id")');
+    expect(detailPkMigration).toContain('ALTER TABLE "cusip_quarter_investor_activity_detail" ALTER COLUMN "id" SET NOT NULL');
+    expect(detailPkMigration).toContain('ALTER TABLE "cusip_quarter_investor_activity_detail" ADD PRIMARY KEY ("id")');
+    expect(detailEnsureMigration).toContain("duplicate id values detected");
+    expect(activityIndexMigration).toContain('CREATE INDEX "idx_cusip_quarter_activity_cusip_quarter"');
+    expect(activityIndexMigration).toContain('CREATE INDEX "idx_cusip_quarter_activity_ticker_quarter"');
   });
 
   test("readiness check enforces the detail-table primary key contract", () => {
@@ -35,14 +39,14 @@ describe("serving Zero-sync schema contract", () => {
   });
 
   test("investor activity zero-sync path preserves the secondary lookup indexes needed for warm local-like chart latency", () => {
-    const migration = readProjectFile("docker/migrations/0010_enable_investor_activity_zero_sync.sql");
+    const migration = readProjectFile("docker/migrations/0006_tense_living_mummy.sql");
     const readiness = readProjectFile("infra/prod/sql/verify-zero-readiness.sql");
 
     expect(migration).toContain(
-      "CREATE INDEX IF NOT EXISTS idx_cusip_quarter_activity_cusip_quarter ON serving.cusip_quarter_investor_activity (cusip, quarter)"
+      'CREATE INDEX "idx_cusip_quarter_activity_cusip_quarter" ON "cusip_quarter_investor_activity" USING btree ("cusip","quarter")'
     );
     expect(migration).toContain(
-      "CREATE INDEX IF NOT EXISTS idx_cusip_quarter_activity_ticker_quarter ON serving.cusip_quarter_investor_activity (ticker, quarter)"
+      'CREATE INDEX "idx_cusip_quarter_activity_ticker_quarter" ON "cusip_quarter_investor_activity" USING btree ("ticker","quarter")'
     );
     expect(readiness).toContain(
       "serving.cusip_quarter_investor_activity must have idx_cusip_quarter_activity_cusip_quarter for Zero chart lookups"
@@ -52,14 +56,10 @@ describe("serving Zero-sync schema contract", () => {
     );
   });
 
-  test("investor activity migration skips redundant id scans once the serving table already has a primary key", () => {
-    const migration = readProjectFile("docker/migrations/0010_enable_investor_activity_zero_sync.sql");
+  test("production bootstrap no longer depends on a separate investor activity zero-sync repair sql", () => {
+    const bootstrapScript = readProjectFile("infra/prod/scripts/apply-postgres-bootstrap.sh");
 
-    expect(migration).toContain("has_activity_primary_key boolean");
-    expect(migration).toContain("SELECT EXISTS (");
-    expect(migration).toContain("INTO has_activity_primary_key");
-    expect(migration).toContain("IF NOT has_activity_primary_key THEN");
-    expect(migration).not.toContain("FROM serving.cusip_quarter_investor_activity\n      WHERE id IS NULL");
-    expect(migration).not.toContain("FROM serving.cusip_quarter_investor_activity\n      GROUP BY id");
+    expect(bootstrapScript).not.toContain("should_skip_investor_activity_zero_sync_migration");
+    expect(bootstrapScript).not.toContain("enable-investor-activity-zero-sync.sql");
   });
 });

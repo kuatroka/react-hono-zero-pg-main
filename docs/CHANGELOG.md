@@ -133,7 +133,7 @@ CREATE INDEX idx_entities_name ON entities(name);
 - Removed `@tanstack/react-router` and `@tanstack/router-devtools`
 - Added `react-router-dom` v7.9.4
 - Refactored `main.tsx` to use React Router
-- Updated `CounterPage.tsx` navigation
+- Updated `former charts demo component` navigation
 - Simplified routing code (43 lines → 8 lines)
 - Reduced bundle size by 20KB
 
@@ -145,7 +145,7 @@ CREATE INDEX idx_entities_name ON entities(name);
 
 ### Files Changed
 - `src/main.tsx` - Replaced TanStack Router with React Router
-- `src/components/CounterPage.tsx` - Updated Link imports
+- `the former charts demo component` - Updated Link imports
 - `package.json` - Updated dependencies
 - `bun.lock` - Updated lockfile
 

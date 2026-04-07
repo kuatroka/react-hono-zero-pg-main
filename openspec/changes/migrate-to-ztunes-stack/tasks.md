@@ -24,7 +24,7 @@
 - [ ] 2.11 Migrate superinvestors table: `app/routes/_layout/superinvestors.tsx` with loader
 - [ ] 2.12 Migrate superinvestor detail: `app/routes/_layout/superinvestors.$cik.tsx` with loader
 - [ ] 2.13 Migrate messages page: `app/routes/_layout/messages.tsx`
-- [ ] 2.14 Migrate counter page: `app/routes/_layout/counter.tsx`
+- [ ] 2.14 Migrate counter page: `app/routes/_layoutthe former charts demo route.tsx`
 - [ ] 2.15 Migrate profile page: `app/routes/_layout/profile.tsx`
 - [ ] 2.16 Configure `defaultPreload: 'viewport'` in router
 - [ ] 2.17 Update preload strategy to use route loaders

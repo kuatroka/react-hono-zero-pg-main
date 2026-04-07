@@ -13,7 +13,7 @@ This directory makes this repo the deployment source of truth for:
 - `docker-compose.yml` defines the shared production stack.
 - `.env.example` is the contract for the external env file stored on the VPS.
 - `scripts/deploy.sh` performs a non-destructive deploy.
-- `scripts/apply-postgres-bootstrap.sh` reapplies the idempotent SQL needed for an existing shared volume.
+- `scripts/apply-postgres-bootstrap.sh` runs the tracked Drizzle migrations and idempotent seed/bootstrap repair steps against the shared Postgres volume.
 - `scripts/deploy-zero-permissions.sh` deploys Zero permissions with a Node 24 runner.
 - `scripts/healthcheck.sh` verifies app, Zero, and Postgres readiness.
 - `scripts/inspect-current-postgres.sh` captures the current prod container, ports, volume mounts, and DB settings before cutover.

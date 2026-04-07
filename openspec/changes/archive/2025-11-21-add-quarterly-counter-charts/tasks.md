@@ -21,9 +21,9 @@
 ## Phase 2: API Implementation
 
 ### Task 2.1: Counter API Endpoints
-- [x] Create `api/routes/counter.ts`
-- [x] Implement `GET /api/counter` handler
-- [x] Implement `POST /api/counter` handler (inc/dec)
+- [x] Create `api/routesthe former charts demo route.ts`
+- [x] Implement `GET /apithe former charts demo route` handler
+- [x] Implement `POST /apithe former charts demo route` handler (inc/dec)
 - [x] Add input validation for operation type
 - [x] Add error handling and appropriate status codes
 - [x] Test endpoints with curl/Postman
@@ -37,14 +37,14 @@
 
 ### Task 2.3: Register API Routes
 - [x] Update `api/index.ts` to import new routes
-- [x] Mount counter routes at `/api/counter`
+- [x] Mount counter routes at `/apithe former charts demo route`
 - [x] Mount quarters routes at `/api/quarters`
 - [x] Test routes are accessible
 
 ## Phase 3: Client Services
 
 ### Task 3.1: Counter Service
-- [x] Create `src/services/counter.ts`
+- [x] Create `src/servicesthe former charts demo route.ts`
 - [x] Implement `getValue()` function
 - [x] Implement `increment()` function
 - [x] Implement `decrement()` function
@@ -67,13 +67,13 @@
 ### Task 4.2: Configure Router
 - [x] Create `src/routes/__root.tsx` (root layout)
 - [x] Create `src/routes/index.tsx` (home route - move App.tsx content)
-- [x] Create `src/routes/counter.tsx` (counter route)
+- [x] Create `src/routesthe former charts demo route.tsx` (counter route)
 - [x] Update `src/main.tsx` to use TanStack Router
 - [x] Add router provider and route tree
 - [x] Test navigation between routes
 
 ### Task 4.3: Add Navigation Links
-- [x] Add link to `/counter` in home page
+- [x] Add link to `the former charts demo route` in home page
 - [x] Add back link in counter page
 - [x] Style navigation links
 
@@ -122,8 +122,8 @@
 
 ## Phase 6: Counter Page
 
-### Task 6.1: CounterPage Component
-- [x] Create `src/components/CounterPage.tsx`
+### Task 6.1: former charts demo page Component
+- [x] Create `the former charts demo component`
 - [x] Add state for counter value
 - [x] Add state for loading
 - [x] Add state for error
@@ -158,9 +158,9 @@
 - [x] Check counter initialized to 0
 
 ### Task 7.2: API Testing
-- [x] Test GET /api/counter returns initial value
-- [x] Test POST /api/counter with "inc" operation
-- [x] Test POST /api/counter with "dec" operation
+- [x] Test GET /apithe former charts demo route returns initial value
+- [x] Test POST /apithe former charts demo route with "inc" operation
+- [x] Test POST /apithe former charts demo route with "dec" operation
 - [x] Test invalid operation returns 400
 - [x] Test GET /api/quarters returns correct format
 - [x] Verify 107 quarters in response

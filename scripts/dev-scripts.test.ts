@@ -15,4 +15,23 @@ describe("bun-only development scripts", () => {
     expect(scripts["dev:serve"]).toContain("bun run dev:zero-cache");
     expect(scripts["dev:serve"]).not.toContain("vite");
   });
+
+  test("default dev command bootstraps the database schema before serving", () => {
+    const scripts = packageJson.scripts as Record<string, string>;
+
+    expect(scripts["dev"]).toContain("bun run dev:db-up");
+    expect(scripts["dev"]).toContain("bun run dev:bootstrap-db");
+    expect(scripts["dev"]).toContain("bun run dev:serve");
+    expect(scripts["dev:bootstrap-db"]).toContain("bun scripts/db-preflight.ts");
+    expect(scripts["dev:bootstrap-db"]).toContain("bun run db:migrate");
+    expect(scripts["dev:bootstrap-db"]).toContain("bun run db:seed");
+  });
+
+  test("db seed respects an already-provided ZERO_UPSTREAM_DB override", () => {
+    const scripts = packageJson.scripts as Record<string, string>;
+
+    expect(scripts["db:seed"]).toContain('if [ -z "${ZERO_UPSTREAM_DB:-}" ]; then');
+    expect(scripts["db:seed"]).toContain("source .env");
+    expect(scripts["db:seed"]).toContain("bun run scripts/db-seed.ts");
+  });
 });

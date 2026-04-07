@@ -31,7 +31,7 @@
 - Modify: `src/pages/AssetsTable.tsx` — list/search page smoke target
 - Modify: `src/pages/AssetDetail.tsx` — detail page + chart smoke target
 - Modify: `src/pages/SuperinvestorDetail.tsx` — secondary detail smoke path if needed
-- Modify: `src/components/CounterPage.tsx` — counter/charts smoke path if asset charts are blocked
+- Modify: `the legacy charts page component` — legacy charts smoke path if asset charts are blocked
 - Modify: `src/components/GlobalSearch.tsx` — search smoke target if zero query flow is broken
 
 ### Data/bootstrap

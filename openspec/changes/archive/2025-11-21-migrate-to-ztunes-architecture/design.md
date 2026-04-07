@@ -486,7 +486,7 @@ ZERO_MUTATE_FORWARD_COOKIES="true"
 3. Implement `increment` and `decrement` mutators
 4. Update `/api/zero/mutate` to use custom mutators
 5. Update client components to use custom mutators
-6. Remove REST API endpoints: `/api/counter`
+6. Remove REST API endpoints: `/apithe former charts demo route`
 7. Test counter functionality
 
 **Success Criteria**:
@@ -541,7 +541,7 @@ ZERO_MUTATE_FORWARD_COOKIES="true"
 
 **Steps**:
 1. Delete `api/` directory (Hono server)
-2. Delete `src/services/counter.ts` and `src/services/quarters.ts`
+2. Delete `src/servicesthe former charts demo route.ts` and `src/services/quarters.ts`
 3. Delete `src/schema.ts` (manual schema)
 4. Remove JWT auth code
 5. Update `openspec/project.md`
@@ -585,7 +585,7 @@ ZERO_MUTATE_FORWARD_COOKIES="true"
 ## Success Metrics
 
 **Technical Metrics**:
-- Zero REST API endpoints (currently 2: `/api/counter`, `/api/quarters`)
+- Zero REST API endpoints (currently 2: `/apithe former charts demo route`, `/api/quarters`)
 - 100% server-side validation coverage for mutations
 - 100% auth context enforcement in mutations
 - Zero manual schema sync issues

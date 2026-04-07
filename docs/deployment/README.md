@@ -43,7 +43,6 @@ Local repo inputs that define the current production contract:
 - `infra/prod/sql/verify-zero-readiness.sql`
 - `docker/migrations/0008_move_shared_tables_to_namespaces.sql`
 - `docker/migrations/0009_create_zero_app_publication.sql`
-- `docker/migrations/0010_enable_investor_activity_zero_sync.sql`
 - `Dockerfile`
 - `.github/workflows/deploy.yml`
 
@@ -326,12 +325,15 @@ Root cause:
 Fix:
 
 - removed `0004` from `infra/prod/scripts/apply-postgres-bootstrap.sh`
-- created a smaller, focused migration `docker/migrations/0010_enable_investor_activity_zero_sync.sql`
+- verified the existing Drizzle migration chain already enforced the required keys and indexes
 
 Repo evidence:
 
 - `infra/prod/scripts/apply-postgres-bootstrap.sh`
-- `docker/migrations/0010_enable_investor_activity_zero_sync.sql`
+- `docker/migrations/0001_large_selene.sql`
+- `docker/migrations/0003_curvy_khan.sql`
+- `docker/migrations/0004_ensure_zero_sync_key.sql`
+- `docker/migrations/0006_tense_living_mummy.sql`
 - commits `abbaaf4`, `4dfe842`
 
 ### 13. Fix the schema namespace mismatch
@@ -488,7 +490,7 @@ That meant the right fix was not to disable the feature permanently. The right f
 
 Fix:
 
-- created `docker/migrations/0010_enable_investor_activity_zero_sync.sql`
+- relied on the tracked Drizzle migrations already in the repo
 - made `serving.cusip_quarter_investor_activity.id` `NOT NULL`
 - made `id` the primary key
 
@@ -590,7 +592,7 @@ Final verification included:
 | `crypto.randomUUID` missing on public HTTP/IP | Browser runtime on non-secure origin lacked that API path | Added `randomUUIDCompat()` | Keep browser-safe fallback for client IDs |
 | Bootstrap migration against huge detail table ran too long | `0004_ensure_zero_sync_key.sql` was too heavy for default prod bootstrap | Removed `0004` from prod bootstrap; added focused `0010` migration | Maintain a "shared-prod-safe" bootstrap list separate from fresh-init mounts |
 | App expected `serving.*`, prod still had `public.*` | Schema namespace drift | Applied `0008_move_shared_tables_to_namespaces.sql` and set role `search_path` | Add namespace verification to preflight and bootstrap |
-| Zero schema incompatibility on `serving.cusip_quarter_investor_activity` | Table had no database-level PK despite `id` values existing | Added `0010_enable_investor_activity_zero_sync.sql`; restored client schema | Never add a table to `src/schema.ts` before PK verification passes |
+| Zero schema incompatibility on `serving.cusip_quarter_investor_activity` | Table had no database-level PK despite `id` values existing | Restored the tracked Drizzle migration chain and client schema | Never add a table to `src/schema.ts` before PK verification passes |
 | Investor activity charts had to be disabled temporarily | App depended on an unsyncable table | Removed table/queries/charts temporarily, then restored after DB fix | Use a progressive rollout sequence: DB first, app schema second |
 | Zero permissions missing upstream | Production deploy never ran supported permissions CLI | Added Node 24 permissions runner and deploy script | Make permissions deployment a mandatory deploy step |
 | App container restarted showing permissions help text | Wrong Dockerfile stage was built for the app | Restored final `runtime` stage and explicit compose build target | Add container command smoke check after build |
@@ -699,16 +701,16 @@ Minimum browser smoke flow:
 
 The production cutover depended on reusing an existing named volume. That should be explicit and documented as an external ownership contract if possible.
 
-### 8. The initdb path and the existing-volume bootstrap path are not perfectly aligned
+### 8. The initdb path and the existing-volume bootstrap path are now aligned
 
-Important mismatch:
+Current production posture:
 
-- `infra/prod/scripts/apply-postgres-bootstrap.sh` intentionally excludes `0004_ensure_zero_sync_key.sql`
-- but `infra/prod/docker-compose.yml` still mounts `0004_ensure_zero_sync_key.sql` in `docker-entrypoint-initdb.d`
+- `infra/prod/docker-compose.yml` keeps `docker-entrypoint-initdb.d` limited to Postgres extension setup
+- `infra/prod/scripts/apply-postgres-bootstrap.sh` owns the schema/bootstrap replay path via `bun run db:migrate`, `bun run db:seed`, and the focused Zero repair SQL
 
 That means:
 
-- fresh empty-volume initialization and existing-volume bootstrap do not follow the same safe path
+- fresh empty-volume initialization and existing-volume bootstrap now follow the same repo-owned path
 
 Recommendation:
 

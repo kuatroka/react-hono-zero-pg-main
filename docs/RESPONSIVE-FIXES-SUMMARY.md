@@ -42,8 +42,8 @@ Fixed horizontal scroll issues and improved responsive behavior across the appli
 **File:** `src/components/GlobalNav.tsx`
 - Removed "All Entities" navigation link
 
-### 4. Fixed Counter Page Responsive Layout ✅
-**File:** `src/components/CounterPage.tsx`
+### 4. Fixed former charts demo page responsive layout ✅
+**File:** `the former charts demo component`
 
 #### Header Section:
 ```tsx
@@ -186,6 +186,6 @@ Fixed horizontal scroll issues and improved responsive behavior across the appli
 ## Files Modified
 1. `src/components/CikSearch.tsx` - Made search responsive
 2. `src/components/GlobalNav.tsx` - Made navigation responsive, removed GlobalSearch
-3. `src/components/CounterPage.tsx` - Fixed card layouts and responsive behavior
+3. `the former charts demo component` - Fixed card layouts and responsive behavior
 4. `src/main.tsx` - Removed entities list routes
 5. `src/components/GlobalSearch.tsx` - **DELETED**

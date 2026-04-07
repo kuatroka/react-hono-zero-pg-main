@@ -26,7 +26,7 @@ The project currently uses DaisyUI as its component library, but shadcn/ui offer
 
 ### Affected Components
 - `src/components/ThemeSwitcher.tsx` - Complete rewrite using shadcn/ui Button and icons
-- `src/components/CounterPage.tsx` - Replace DaisyUI cards and buttons
+- `the former charts demo component` - Replace DaisyUI cards and buttons
 - `src/components/GlobalSearch.tsx` - Replace hardcoded colors with theme-aware shadcn/ui components (Input, Command, Badge)
 - `src/components/CikSearch.tsx` - Replace hardcoded colors with theme-aware shadcn/ui components (Input, Command, Badge)
 - `src/components/GlobalNav.tsx` - Update to use shadcn/ui components for consistency

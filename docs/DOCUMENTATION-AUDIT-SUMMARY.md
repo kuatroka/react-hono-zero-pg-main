@@ -21,7 +21,7 @@ Review all documentation to ensure:
 **Problem:**
 - Described app as "real-time messaging application"
 - Listed messages/users/mediums as primary domain
-- Missing entities table, search, counter/charts
+- Missing entities table, search, legacy charts
 
 **Fix:**
 - Updated to describe entities management (investors/assets)
@@ -51,17 +51,17 @@ Review all documentation to ensure:
 **Fix:**
 - Added "✅ FULLY IMPLEMENTED" banner with implementation date
 - Clarified that React Router was used instead of TanStack Router (architectural improvement)
-- Listed all completed features (counter, 10 charts, API, database)
+- Listed all completed features (charts, API, database)
 
 ### 4. **README.md** - INCOMPLETE ✅ ENHANCED
 **Problem:**
 - Missing features overview
-- No mention of entities/search/counter functionality
+- No mention of entities/search functionality
 - No link to detailed architecture docs
 
 **Fix:**
 - Added features section with emojis
-- Listed all major features (search, counter, charts, sync)
+- Listed all major features (search, charts, sync)
 - Added link to CURRENT-STATE.md for detailed info
 
 ### 5. **Root-level PHASE-*.md files** - SCATTERED ✅ CONSOLIDATED

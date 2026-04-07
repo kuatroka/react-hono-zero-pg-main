@@ -39,11 +39,17 @@ describe("app shell styling parity", () => {
   test("detail pages do not use legacy DaisyUI link classes", () => {
     const assetDetail = readProjectFile("src/pages/AssetDetail.tsx");
     const superinvestorDetail = readProjectFile("src/pages/SuperinvestorDetail.tsx");
-    const counterPage = readProjectFile("src/components/CounterPage.tsx");
 
     expect(assetDetail).not.toContain("link link-primary");
     expect(superinvestorDetail).not.toContain("link link-primary");
-    expect(counterPage).not.toContain("link link-primary");
+  });
+
+  test("app shell no longer exposes the legacy counter route or landing-page CTA", () => {
+    const main = readProjectFile("src/main.tsx");
+
+    expect(main).not.toContain('path="/counter"');
+    expect(main).not.toContain("CounterPage");
+    expect(main).not.toContain("View Counter & Charts");
   });
 
   test("asset detail charts stay within the page width instead of using viewport breakout classes", () => {

@@ -20,10 +20,10 @@ This change proposal adds a counter feature with quarterly data visualization us
    - Estimated timeline (19-29 hours)
    - Success criteria
 
-3. **[specs/counter-api/spec.md](./specs/counter-api/spec.md)** - Counter API specification
+3. **[specsthe former charts demo route-api/spec.md](./specsthe former charts demo route-api/spec.md)** - Counter API specification
    - Database schema for counters table
-   - GET /api/counter endpoint
-   - POST /api/counter endpoint (inc/dec operations)
+   - GET /apithe former charts demo route endpoint
+   - POST /apithe former charts demo route endpoint (inc/dec operations)
    - Implementation details and testing
 
 4. **[specs/quarterly-charts/spec.md](./specs/quarterly-charts/spec.md)** - Charts specification
@@ -93,7 +93,7 @@ openspec/changes/add-quarterly-counter-charts/
 
 ### Phase 4: Routing
 - Install and configure TanStack Router
-- Create route structure (/, /counter)
+- Create route structure (/, the former charts demo route)
 
 ### Phase 5: Charts
 - Install uPlot
@@ -101,7 +101,7 @@ openspec/changes/add-quarterly-counter-charts/
 - Create QuarterChart React component
 
 ### Phase 6: UI
-- Create CounterPage component
+- Create former charts demo page component
 - Implement counter controls
 - Render 10 charts in responsive grid
 
@@ -112,22 +112,22 @@ openspec/changes/add-quarterly-counter-charts/
 1. **Start database**: `bun run dev:db-up`
 2. **Run migration**: Apply 02_add_counter_quarters.sql
 3. **Start dev servers**: `bun run dev`
-4. **Navigate to counter**: http://localhost:3003/counter
+4. **Navigate to counter**: http://localhost:3003the former charts demo route
 
 ## API Endpoints
 
 ```bash
 # Get counter value
-GET /api/counter
+GET /apithe former charts demo route
 Response: { "value": 0 }
 
 # Increment counter
-POST /api/counter
+POST /apithe former charts demo route
 Body: { "op": "inc" }
 Response: { "value": 1 }
 
 # Decrement counter
-POST /api/counter
+POST /apithe former charts demo route
 Body: { "op": "dec" }
 Response: { "value": 0 }
 

@@ -26,12 +26,12 @@ ON CONFLICT (id) DO NOTHING;
 
 ## API Endpoints
 
-### GET /api/counter
+### GET /apithe former charts demo route
 Retrieve the current counter value.
 
 **Request:**
 - Method: `GET`
-- Path: `/api/counter`
+- Path: `/apithe former charts demo route`
 - Headers: None required
 - Body: None
 
@@ -53,12 +53,12 @@ Retrieve the current counter value.
   }
   ```
 
-### POST /api/counter
+### POST /apithe former charts demo route
 Increment or decrement the counter value.
 
 **Request:**
 - Method: `POST`
-- Path: `/api/counter`
+- Path: `/apithe former charts demo route`
 - Headers: `Content-Type: application/json`
 - Body:
   ```json
@@ -103,7 +103,7 @@ Increment or decrement the counter value.
 ## Implementation Details
 
 ### Hono Route Handler
-Location: `api/routes/counter.ts`
+Location: `api/routesthe former charts demo route.ts`
 
 ```typescript
 import { Hono } from "hono";
@@ -153,11 +153,11 @@ export default counter;
 ```
 
 ### Client Service
-Location: `src/services/counter.ts`
+Location: `src/servicesthe former charts demo route.ts`
 
 ```typescript
 export async function getValue(): Promise<number> {
-  const res = await fetch("/api/counter");
+  const res = await fetch("/apithe former charts demo route");
   if (!res.ok) throw new Error(`Failed to fetch counter: ${res.status}`);
   const data = (await res.json()) as { value: number };
   return data.value;
@@ -172,7 +172,7 @@ export async function decrement(): Promise<number> {
 }
 
 async function mutate(op: "inc" | "dec"): Promise<number> {
-  const res = await fetch("/api/counter", {
+  const res = await fetch("/apithe former charts demo route", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ op }),
@@ -193,15 +193,15 @@ The API handlers will use the existing PostgreSQL connection from the Hono serve
 ### Manual Testing
 ```bash
 # Get counter value
-curl http://localhost:4000/api/counter
+curl http://localhost:4000/apithe former charts demo route
 
 # Increment counter
-curl -X POST http://localhost:4000/api/counter \
+curl -X POST http://localhost:4000/apithe former charts demo route \
   -H "Content-Type: application/json" \
   -d '{"op":"inc"}'
 
 # Decrement counter
-curl -X POST http://localhost:4000/api/counter \
+curl -X POST http://localhost:4000/apithe former charts demo route \
   -H "Content-Type: application/json" \
   -d '{"op":"dec"}'
 ```

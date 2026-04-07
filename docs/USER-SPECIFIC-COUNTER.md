@@ -41,18 +41,18 @@ userCounter: syncedQuery(
 )
 ```
 
-### 4. UI Updates (`src/components/CounterPage.tsx`)
+### 4. UI Updates (`the former charts demo component`)
 
 **Added:**
-- Query for user-specific counter using `z.userID`
+- Query for a user-specific counter using `z.userID`
 - Increment/decrement handlers that create the row if it doesn't exist
 - Second counter card with "Your Counter" label
-- Different button styling (secondary color) to distinguish from global counter
+- Different button styling (secondary color) to distinguish it from the former global counter
 
 **Layout:**
 - Changed to a 2-column grid layout on medium+ screens
-- Global counter on the left (primary color)
-- User counter on the right (secondary color)
+- Former global counter on the left (primary color)
+- Former user counter on the right (secondary color)
 
 ## How It Works
 
@@ -100,7 +100,7 @@ To test the user-specific counter:
    - Log in as different users (change the JWT cookie)
    - Each user should see their own counter value
    - Changes to one user's counter should not affect other users
-   - The global counter should still sync across all users
+   - The former global counter should still sync across all users
 
 ## Database Schema
 
@@ -114,7 +114,7 @@ CREATE TABLE user_counters (
 ## Future Enhancements
 
 Possible improvements:
-- Add a reset button for the user counter
+- Add a reset button for the former user counter
 - Show a list of all users and their counter values (for admins)
 - Add statistics (average, min, max across all users)
 - Add a leaderboard showing top users by counter value

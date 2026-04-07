@@ -62,7 +62,7 @@
 ### 2.3 Migrate Routing
 - [ ] 2.3.1 Create `app/routes/__root.tsx` (root layout)
 - [ ] 2.3.2 Create `app/routes/index.tsx` (home route)
-- [ ] 2.3.3 Create `app/routes/counter.tsx` (counter route)
+- [ ] 2.3.3 Create `app/routesthe former charts demo route.tsx` (counter route)
 - [ ] 2.3.4 Create `app/routes/entities.tsx` (entities list route)
 - [ ] 2.3.5 Create `app/routes/entities.$id.tsx` (entity detail route)
 - [ ] 2.3.6 Update `src/main.tsx` to use TanStack Router
@@ -164,15 +164,15 @@
 - [ ] 4.4.7 Test mutate endpoint
 
 ### 4.5 Update Client Components
-- [ ] 4.5.1 Update `CounterPage.tsx` to use custom mutators
+- [ ] 4.5.1 Update `former charts demo component` to use custom mutators
 - [ ] 4.5.2 Replace REST API calls with `z.mutate.counter.increment()`
 - [ ] 4.5.3 Replace REST API calls with `z.mutate.counter.decrement()`
 - [ ] 4.5.4 Add error handling
 - [ ] 4.5.5 Test counter functionality
 
 ### 4.6 Remove Counter REST Endpoint
-- [ ] 4.6.1 Delete `api/routes/counter.ts`
-- [ ] 4.6.2 Delete `src/services/counter.ts`
+- [ ] 4.6.1 Delete `api/routesthe former charts demo route.ts`
+- [ ] 4.6.2 Delete `src/servicesthe former charts demo route.ts`
 - [ ] 4.6.3 Remove counter route from Hono server
 - [ ] 4.6.4 Test counter still works
 
@@ -263,7 +263,7 @@
 - [ ] 7.1.5 Remove Hono dev script
 
 ### 7.2 Remove Old Services
-- [ ] 7.2.1 Delete `src/services/counter.ts`
+- [ ] 7.2.1 Delete `src/servicesthe former charts demo route.ts`
 - [ ] 7.2.2 Delete `src/services/quarters.ts`
 - [ ] 7.2.3 Delete `src/services/` directory (if empty)
 

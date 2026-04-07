@@ -1,4 +1,4 @@
-# Current State - Zero Hono React Counter uPlot
+# Current State - Zero Hono React Analytics
 
 **Last Updated:** 2025-01-17  
 **Status:** Phase 2.2 Complete ✅
@@ -9,7 +9,7 @@
 
 A real-time analytics application demonstrating **Zero-sync** (Rocicorp's sync framework) with:
 - **Entities Management:** 1000 investors and assets with instant search
-- **Counter Demo:** Simple counter with 10 different uPlot chart visualizations
+- **Messages Demo:** A separate messages flow with real-time sync
 - **Real-time Sync:** Zero-sync keeps data synchronized across clients
 - **Modern Stack:** React 19 + Bun + Hono + PostgreSQL
 
@@ -24,16 +24,17 @@ A real-time analytics application demonstrating **Zero-sync** (Rocicorp's sync f
 - **Detail pages:** Individual entity pages with full information
 - **Preloading:** 500 most recent entities cached at startup for instant search
 
-### 2. **Counter & Charts Demo**
-- **Counter:** Simple increment/decrement with PostgreSQL persistence
-- **10 uPlot Charts:** Different visualization types (bars, line, area, scatter, etc.)
-- **Quarterly Data:** 107 quarters of sample data (1999Q1-2025Q4)
-
-### 3. **Messages Demo** (Original Zero Example)
+### 2. **Messages Demo** (Original Zero Example)
 - **CRUD operations:** Create, read, update, delete messages
 - **Relationships:** Messages linked to users and mediums
 - **Filtering:** Filter by sender and text content
 - **Real-time sync:** Multi-tab synchronization
+
+### 3. **Hidden / Interaction-Only Routes**
+- `/messages` - Messages demo page
+- `/profile` - User profile placeholder
+- `/assets/:code/:cusip` - Asset detail page
+- `/superinvestors/:cik` - Superinvestor detail page
 
 ---
 
@@ -172,12 +173,14 @@ bun run dev
 ### Routes
 
 - `/` - Home (messages demo)
-- `/counter` - Counter + 10 charts
-- `/entities` - All entities (investors + assets)
-- `/investors` - Investors only
-- `/assets` - Assets only
-- `/entities/:id` - Entity detail page
-- `/profile` - User profile (placeholder)
+- `/messages` - Messages demo page
+- `/assets` - Assets table
+- `/assets/:code/:cusip` - Asset detail page
+- `/superinvestors` - Superinvestors table
+- `/superinvestors/:cik` - Superinvestor detail page
+- `/profile` - User profile placeholder
+
+Only `/`, `/assets`, and `/superinvestors` are surfaced directly in the top navigation; the rest are reached through in-app interactions.
 
 ---
 
@@ -311,7 +314,7 @@ Located in `openspec/changes/mvp-full-implementation/`:
 ### Phase 1
 - [x] Counter increments/decrements work
 - [x] All 10 charts render correctly
-- [x] Navigation between home and counter works
+- [x] Navigation between home and the legacy charts demo works
 - [x] No console errors
 - [x] Bundle size reduced by 20KB
 
