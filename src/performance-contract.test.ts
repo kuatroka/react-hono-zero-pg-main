@@ -233,26 +233,37 @@ describe("performance contracts", () => {
     expect(superinvestorsTable).not.toContain("CardDescription");
   });
 
-  test("asset detail surfaces shared two-line data and renderer latency telemetry for investor activity charts", () => {
+  test("asset detail surfaces the eCharts investor activity chart and virtual drilldown table with shared latency telemetry", () => {
     const assetDetail = readProjectFile("src/pages/AssetDetail.tsx");
     const latencyBadge = readProjectFile("src/components/LatencyBadge.tsx");
     const latencyHook = readProjectFile("src/lib/latency.ts");
     const telemetryCore = readProjectFile("src/lib/perf/telemetry.ts");
     const echartsChart = readProjectFile("src/components/charts/InvestorActivityEchartsChart.tsx");
-    const uplotChart = readProjectFile("src/components/charts/InvestorActivityUplotChart.tsx");
+    const drilldownTable = readProjectFile("src/components/InvestorActivityDrilldownTable.tsx");
+    const localVirtualTable = readProjectFile("src/components/LocalVirtualDataTable.tsx");
+    const selectionHelper = readProjectFile("src/lib/investor-activity-selection.ts");
 
-    expect(assetDetail).toContain("const [uplotRenderLatencyMs, setUplotRenderLatencyMs] = useState<number | null>(null)");
+    expect(assetDetail).toContain("const AssetDetailHeader = memo(function AssetDetailHeader");
+    expect(assetDetail).toContain("const AssetDetailActivityGrid = memo(function AssetDetailActivityGrid");
+    expect(assetDetail).toContain("const [selectedInvestorActivity, setSelectedInvestorActivity] = useState<{");
     expect(assetDetail).toContain("const [echartsRenderLatencyMs, setEchartsRenderLatencyMs] = useState<number | null>(null)");
     expect(assetDetail).toContain("const activityDataLatencyMs = useLatencyMs({");
-    expect(assetDetail).toContain("const uplotTelemetry = createPerfTelemetry({");
-    expect(assetDetail).toContain("secondaryLabel: 'investorActivity: uPlot render'");
-    expect(assetDetail).toContain("const echartsTelemetry = createPerfTelemetry({");
+    expect(assetDetail).toContain("const echartsTelemetry = useMemo(() => createPerfTelemetry({");
     expect(assetDetail).toContain("secondaryLabel: 'investorActivity: ECharts render'");
-    expect(assetDetail).toContain("<LatencyBadge telemetry={assetTelemetry} />");
-    expect(assetDetail).toContain("telemetry={uplotTelemetry}");
+    expect(assetDetail).not.toContain("slice(-6)");
+    expect(assetDetail).toContain("const defaultInvestorActivitySelection = resolveDefaultInvestorActivitySelection(activityRows);");
+    expect(assetDetail).toContain("const resolvedInvestorActivitySelection = selectedInvestorActivity ?? defaultInvestorActivitySelection;");
+    expect(assetDetail).toContain("<LatencyBadge telemetry={telemetry} />");
     expect(assetDetail).toContain("telemetry={echartsTelemetry}");
-    expect(assetDetail).toContain("onRenderReady={setUplotRenderLatencyMs}");
     expect(assetDetail).toContain("onRenderReady={setEchartsRenderLatencyMs}");
+    expect(assetDetail).toContain("const handleInvestorActivityBarClick = useCallback");
+    expect(assetDetail).toContain("onBarClick={handleInvestorActivityBarClick}");
+    expect(assetDetail).toContain("InvestorActivityDrilldownTable");
+    expect(assetDetail).toContain('className="grid w-full grid-cols-3 items-center');
+    expect(assetDetail).toContain('&larr; Back to assets');
+    expect(assetDetail).toContain('({asset}) {assetName}');
+    expect(assetDetail).toContain('xl:grid-cols-[minmax(0,1.15fr)_minmax(28rem,0.85fr)]');
+    expect(assetDetail).toContain("No investor drilldown data available for this asset.");
 
     expect(latencyBadge).toContain("telemetry?: PerfTelemetry");
     expect(latencyBadge).toContain("primaryLine");
@@ -268,19 +279,42 @@ describe("performance contracts", () => {
     expect(latencyHook).not.toContain("setMs(0)");
 
     expect(echartsChart).toContain("telemetry?: PerfTelemetry");
+    expect(echartsChart).toContain("onBarClick?: (selection: { quarter: string; action: \"open\" | \"close\" }) => void");
     expect(echartsChart).toContain("onRenderReady?: (renderLatencyMs: number) => void");
     expect(echartsChart).toContain("const renderStartMs = performance.now()");
-    expect(echartsChart).toContain('onRenderReady?.(resolveLatencyMs(renderStartMs))');
+    expect(echartsChart).toContain('onRenderReadyRef.current?.(resolveLatencyMs(renderStartMs))');
+    expect(echartsChart).toContain("const handleChartClick = (params: { name?: string; seriesName?: string }) =>");
+    expect(echartsChart).toContain("const onBarClickRef = useRef(onBarClick)");
+    expect(echartsChart).toContain("const onRenderReadyRef = useRef(onRenderReady)");
+    expect(echartsChart).toContain('chart.on("click", handleChartClick)');
+    expect(echartsChart).toContain('chart.off("click", handleChartClick)');
     expect(echartsChart).toContain('chart.on("finished", handleChartFinished)');
     expect(echartsChart).toContain('chart.off("finished", handleChartFinished)');
-    expect(echartsChart).toContain("<LatencyBadge telemetry={telemetry} />");
+    expect(echartsChart).toContain("Investor Activity for {ticker} (ECharts)");
+    expect(echartsChart).not.toContain("slice(-6)");
+    expect(echartsChart).not.toContain("Showing the latest 6 quarters.");
+    expect(echartsChart).toContain('className="min-w-0 h-[450px] overflow-hidden"');
 
-    expect(uplotChart).toContain("telemetry?: PerfTelemetry");
-    expect(uplotChart).toContain("onRenderReady?: (renderLatencyMs: number) => void");
-    expect(uplotChart).toContain("const renderStartMs = performance.now()");
-    expect(uplotChart).toContain("requestAnimationFrame(() => {");
-    expect(uplotChart).toContain("onRenderReadyRef.current?.(resolveLatencyMs(renderStartMs))");
-    expect(uplotChart).toContain("<LatencyBadge telemetry={telemetry} />");
+    expect(drilldownTable).toContain("searchPlaceholder=\"Search superinvestors...\"");
+    expect(drilldownTable).toContain("fetch(`/api/investor-activity-drilldown?");
+    expect(drilldownTable).toContain("source: \"api:pg\"");
+    expect(drilldownTable).toContain("Superinvestors who");
+    expect(drilldownTable).toContain("LatencyBadge telemetry={telemetry}");
+    expect(drilldownTable).toContain("const [cachedRowsBySelection, setCachedRowsBySelection]");
+    expect(drilldownTable).toContain("const selectionKey =");
+    expect(drilldownTable).toContain("LocalVirtualDataTable");
+    expect(drilldownTable).not.toContain("<DataTable");
+    expect(drilldownTable).toContain("setRowsRenderMs(null)");
+    expect(drilldownTable).toContain('className="min-w-0 h-[450px] overflow-hidden"');
+    expect(drilldownTable).toContain("visibleRowCount={6}");
+    expect(localVirtualTable).toContain("LocalVirtualTableHeaderSearch");
+    expect(localVirtualTable).toContain("Search className");
+    expect(localVirtualTable).toContain("className?: string;");
+    expect(localVirtualTable).toContain('className={cn("space-y-4", className)}');
+    expect(localVirtualTable).toContain("overflow-y-auto");
+    expect(localVirtualTable).toContain("visibleRowCount = DEFAULT_VISIBLE_ROW_COUNT");
+    expect(localVirtualTable).toContain("gridTemplateColumns");
+    expect(selectionHelper).toContain("resolveDefaultInvestorActivitySelection");
   });
 
   test("table telemetry contracts use the shared three-source model and surface parent-card badges", () => {

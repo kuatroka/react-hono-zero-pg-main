@@ -11,6 +11,77 @@ export const app = new Hono().basePath("/api");
 
 app.route("/zero", zeroRoutes);
 
+app.get("/investor-activity-drilldown", async (c) => {
+  const ticker = c.req.query("ticker")?.trim();
+  const quarter = c.req.query("quarter")?.trim();
+  const action = c.req.query("action")?.trim();
+  const cusip = c.req.query("cusip")?.trim() || null;
+
+  if (!ticker || !quarter || (action !== "open" && action !== "close")) {
+    return c.json({ error: "ticker, quarter, and action=open|close are required" }, 400);
+  }
+
+  try {
+    const { sql } = await import("./db");
+    type DrilldownApiRow = {
+      id: number | string;
+      cik: string;
+      cikName: string | null;
+      cikTicker: string | null;
+      quarter: string;
+      action: "open" | "close";
+    };
+
+    const result: DrilldownApiRow[] = action === "open"
+      ? await sql<DrilldownApiRow[]>`
+          SELECT
+            d.id,
+            d.cik::text AS "cik",
+            s.cik_name AS "cikName",
+            s.cik_ticker AS "cikTicker",
+            d.quarter,
+            CAST('open' AS text) AS "action"
+          FROM serving.cusip_quarter_investor_activity_detail d
+          LEFT JOIN serving.superinvestors s ON s.cik = d.cik::text
+          WHERE d.ticker = ${ticker}
+            AND d.quarter = ${quarter}
+            AND (${cusip}::text IS NULL OR d.cusip = ${cusip})
+            AND d.did_open = true
+          ORDER BY COALESCE(s.cik_name, d.cik::text) ASC, d.id ASC
+        `
+      : await sql<DrilldownApiRow[]>`
+          SELECT
+            d.id,
+            d.cik::text AS "cik",
+            s.cik_name AS "cikName",
+            s.cik_ticker AS "cikTicker",
+            d.quarter,
+            CAST('close' AS text) AS "action"
+          FROM serving.cusip_quarter_investor_activity_detail d
+          LEFT JOIN serving.superinvestors s ON s.cik = d.cik::text
+          WHERE d.ticker = ${ticker}
+            AND d.quarter = ${quarter}
+            AND (${cusip}::text IS NULL OR d.cusip = ${cusip})
+            AND d.did_close = true
+          ORDER BY COALESCE(s.cik_name, d.cik::text) ASC, d.id ASC
+        `;
+
+    const rows = Array.from(result, (row) => ({
+      id: Number(row.id),
+      cik: row.cik,
+      cikName: row.cikName,
+      cikTicker: row.cikTicker,
+      quarter: row.quarter,
+      action: row.action,
+    }));
+
+    return c.json({ rows });
+  } catch (error) {
+    console.error("/api/investor-activity-drilldown error", error);
+    return c.json({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
+  }
+});
+
 // See seed.sql
 // In real life you would of course authenticate the user however you like.
 const userIDs = [

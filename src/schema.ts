@@ -145,7 +145,19 @@ const messageRelationships = relationships(message, ({ one }) => ({
 }));
 
 export const schema = createSchema({
-  tables: [user, medium, message, counter, valueQuarter, entity, userCounter, searches, asset, superinvestor, cusipQuarterInvestorActivity],
+  tables: [
+    user,
+    medium,
+    message,
+    counter,
+    valueQuarter,
+    entity,
+    userCounter,
+    searches,
+    asset,
+    superinvestor,
+    cusipQuarterInvestorActivity,
+  ],
   relationships: [messageRelationships],
   enableLegacyMutators: true,
 });

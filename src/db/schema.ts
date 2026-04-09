@@ -178,5 +178,9 @@ export const cusipQuarterInvestorActivityDetail = servingSchema.table(
     didReduce: boolean("did_reduce"),
     didClose: boolean("did_close"),
     didHold: boolean("did_hold"),
-  }
+  },
+  (table) => [
+    index("idx_cqia_detail_open_lookup").on(table.ticker, table.quarter, table.cusip, table.id),
+    index("idx_cqia_detail_close_lookup").on(table.ticker, table.quarter, table.cusip, table.id),
+  ]
 );

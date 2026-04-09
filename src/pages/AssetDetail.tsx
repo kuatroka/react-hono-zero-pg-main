@@ -1,13 +1,117 @@
-import { useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@rocicorp/zero/react';
 import { LatencyBadge } from '@/components/LatencyBadge';
+import { InvestorActivityDrilldownTable } from '@/components/InvestorActivityDrilldownTable';
+import { resolveDefaultInvestorActivitySelection } from '@/lib/investor-activity-selection';
 import { useLatencyMs } from '@/lib/latency';
 import { createLegacyPerfTelemetry, createPerfTelemetry } from '@/lib/perf/telemetry';
 import { queries } from '@/zero/queries';
 import { PRELOAD_TTL } from '@/zero-preload';
-import { InvestorActivityUplotChart } from '@/components/charts/InvestorActivityUplotChart';
 import { InvestorActivityEchartsChart } from '@/components/charts/InvestorActivityEchartsChart';
+import type { CusipQuarterInvestorActivity } from '@/schema';
+
+const AssetDetailHeader = memo(function AssetDetailHeader({
+  asset,
+  assetName,
+  telemetry,
+}: {
+  asset: string;
+  assetName: string | null;
+  telemetry: ReturnType<typeof createLegacyPerfTelemetry>;
+}) {
+  return (
+    <div className="grid w-full grid-cols-3 items-center px-4 py-8 sm:px-6 lg:px-8">
+      <div className="text-left">
+        <Link
+          to="/assets"
+          className="whitespace-nowrap text-primary hover:underline"
+        >
+          &larr; Back to assets
+        </Link>
+      </div>
+      <div className="text-center">
+        <h1 className="overflow-hidden text-ellipsis whitespace-nowrap text-3xl font-bold">
+          ({asset}) {assetName}
+        </h1>
+      </div>
+      <div className="flex justify-end">
+        <LatencyBadge telemetry={telemetry} />
+      </div>
+    </div>
+  );
+});
+
+const AssetDetailActivityGrid = memo(function AssetDetailActivityGrid({
+  asset,
+  cusip,
+  activityRows,
+}: {
+  asset: string;
+  cusip: string | null;
+  activityRows: readonly CusipQuarterInvestorActivity[];
+}) {
+  const [echartsRenderLatencyMs, setEchartsRenderLatencyMs] = useState<number | null>(null);
+  const [selectedInvestorActivity, setSelectedInvestorActivity] = useState<{
+    quarter: string;
+    action: 'open' | 'close';
+  } | null>(null);
+  const activityDataLatencyMs = useLatencyMs({
+    isReady: activityRows.length > 0,
+    resetKey: `${asset}:${cusip ?? 'no-cusip'}:${activityRows.length}`,
+  });
+  const echartsTelemetry = useMemo(() => createPerfTelemetry({
+    label: 'investorActivity: data',
+    ms: activityDataLatencyMs,
+    secondaryLabel: 'investorActivity: ECharts render',
+    secondaryMs: echartsRenderLatencyMs,
+    source: 'zero-client',
+  }), [activityDataLatencyMs, echartsRenderLatencyMs]);
+  const defaultInvestorActivitySelection = resolveDefaultInvestorActivitySelection(activityRows);
+  const resolvedInvestorActivitySelection = selectedInvestorActivity ?? defaultInvestorActivitySelection;
+  const handleInvestorActivityBarClick = useCallback((selection: { quarter: string; action: 'open' | 'close' }) => {
+    setSelectedInvestorActivity((currentSelection) => (
+      currentSelection?.quarter === selection.quarter && currentSelection.action === selection.action
+        ? currentSelection
+        : selection
+    ));
+  }, []);
+
+  useEffect(() => {
+    setEchartsRenderLatencyMs(null);
+  }, [activityRows.length, asset, cusip]);
+
+  useEffect(() => {
+    setSelectedInvestorActivity(null);
+  }, [asset, cusip]);
+
+  return (
+    <div className="mt-8 px-4 pb-8 sm:px-6 lg:px-8">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(28rem,0.85fr)] xl:items-start">
+        <InvestorActivityEchartsChart
+          data={activityRows}
+          ticker={asset}
+          telemetry={echartsTelemetry}
+          onRenderReady={setEchartsRenderLatencyMs}
+          onBarClick={handleInvestorActivityBarClick}
+        />
+        <div className="min-w-0">
+          {resolvedInvestorActivitySelection ? (
+            <InvestorActivityDrilldownTable
+              ticker={asset}
+              cusip={cusip}
+              selection={resolvedInvestorActivitySelection}
+            />
+          ) : (
+            <div className="rounded-lg border border-border bg-card px-4 py-8 text-center text-muted-foreground">
+              No investor drilldown data available for this asset.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export function AssetDetailPage({ onReady }: { onReady: () => void }) {
   const { code, cusip } = useParams();
@@ -39,50 +143,25 @@ export function AssetDetailPage({ onReady }: { onReady: () => void }) {
   const assetSource = hasCusip ? 'Zero: assets.bySymbolAndCusip' : 'Zero: assets.bySymbol';
 
   // Query investor activity: prefer by cusip if available, otherwise by ticker
-  const [activityByCusip, activityByCusipResult] = useQuery(
+  const [activityByCusip] = useQuery(
     queries.investorActivityByCusip(cusip || ''),
     { enabled: Boolean(hasCusip), ttl: PRELOAD_TTL }
   );
 
-  const [activityByTicker, activityByTickerResult] = useQuery(
+  const [activityByTicker] = useQuery(
     queries.investorActivityByTicker(code || ''),
     { enabled: Boolean(code) && !hasCusip, ttl: PRELOAD_TTL }
   );
 
-  const activityRows = hasCusip ? (activityByCusip ?? []) : (activityByTicker ?? []);
-
-  const activityResult = hasCusip ? activityByCusipResult : activityByTickerResult;
-  const activityReady = Boolean(activityRows.length > 0 || activityResult.type === 'complete');
-  const activityDataLatencyMs = useLatencyMs({
-    isReady: activityReady,
-    resetKey: hasCusip ? `activity:${cusip ?? ''}` : `activity:${code ?? ''}`,
-  });
-  const [uplotRenderLatencyMs, setUplotRenderLatencyMs] = useState<number | null>(null);
-  const [echartsRenderLatencyMs, setEchartsRenderLatencyMs] = useState<number | null>(null);
-  const assetTelemetry = createLegacyPerfTelemetry({
+  const activityRows = useMemo(
+    () => (hasCusip ? (activityByCusip ?? []) : (activityByTicker ?? [])),
+    [activityByCusip, activityByTicker, hasCusip],
+  );
+  const assetTelemetry = useMemo(() => createLegacyPerfTelemetry({
     label: 'data',
     ms: assetLatencyMs,
     source: assetSource,
-  });
-  const uplotTelemetry = createPerfTelemetry({
-    label: 'investorActivity: data',
-    ms: activityDataLatencyMs,
-    secondaryLabel: 'investorActivity: uPlot render',
-    secondaryMs: uplotRenderLatencyMs,
-    source: 'zero-client',
-  });
-  const echartsTelemetry = createPerfTelemetry({
-    label: 'investorActivity: data',
-    ms: activityDataLatencyMs,
-    secondaryLabel: 'investorActivity: ECharts render',
-    secondaryMs: echartsRenderLatencyMs,
-    source: 'zero-client',
-  });
-
-  useEffect(() => {
-    setUplotRenderLatencyMs(null);
-    setEchartsRenderLatencyMs(null);
-  }, [activityRows.length, record?.id]);
+  }), [assetLatencyMs, assetSource]);
 
   // Signal ready when data is available (from cache or server)
   useEffect(() => {
@@ -105,45 +184,16 @@ export function AssetDetailPage({ onReady }: { onReady: () => void }) {
 
   return (
     <>
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="mb-6">
-          <div className="flex items-center justify-between gap-4">
-            <h1 className="text-3xl font-bold">{record.assetName}</h1>
-            <LatencyBadge telemetry={assetTelemetry} />
-          </div>
-        </div>
-        <div className="space-y-3 text-lg">
-          <div><span className="font-semibold">Symbol:</span> {record.asset}</div>
-          {record.cusip && <div><span className="font-semibold">CUSIP:</span> {record.cusip}</div>}
-          <div><span className="font-semibold">ID:</span> {record.id}</div>
-        </div>
-
-        <div className="mt-6">
-          <Link
-            to="/assets"
-            className="text-primary underline-offset-4 hover:underline"
-          >
-            Back to assets
-          </Link>
-        </div>
-      </div>
-
-      <div className="container mx-auto max-w-7xl px-4 pb-8">
-        <div className="mt-8 space-y-10">
-          <InvestorActivityUplotChart
-            data={activityRows}
-            ticker={record.asset}
-            telemetry={uplotTelemetry}
-            onRenderReady={setUplotRenderLatencyMs}
-          />
-          <InvestorActivityEchartsChart
-            data={activityRows}
-            ticker={record.asset}
-            telemetry={echartsTelemetry}
-            onRenderReady={setEchartsRenderLatencyMs}
-          />
-        </div>
-      </div>
+      <AssetDetailHeader
+        asset={record.asset}
+        assetName={record.assetName}
+        telemetry={assetTelemetry}
+      />
+      <AssetDetailActivityGrid
+        asset={record.asset}
+        cusip={record.cusip ?? null}
+        activityRows={activityRows}
+      />
     </>
   );
 }

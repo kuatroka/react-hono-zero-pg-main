@@ -17,6 +17,6 @@ describe("dev startup scripts", () => {
   });
 
   it("uses the shared app stack helper from dev:all", () => {
-    expect(packageJson.scripts["dev:all"]).toContain("dev:serve");
+    expect(packageJson.scripts["dev:all"]).toBe("bun run dev");
   });
 });

@@ -25,6 +25,7 @@ interface InvestorActivityEchartsChartProps {
   data: readonly CusipQuarterInvestorActivity[];
   ticker: string;
   telemetry?: PerfTelemetry;
+  onBarClick?: (selection: { quarter: string; action: "open" | "close" }) => void;
   onRenderReady?: (renderLatencyMs: number) => void;
 }
 
@@ -38,10 +39,21 @@ export const InvestorActivityEchartsChart = memo(function InvestorActivityEchart
   data,
   ticker,
   telemetry,
+  onBarClick,
   onRenderReady,
 }: InvestorActivityEchartsChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<echarts.EChartsType | null>(null);
+  const onBarClickRef = useRef(onBarClick);
+  const onRenderReadyRef = useRef(onRenderReady);
+
+  useEffect(() => {
+    onBarClickRef.current = onBarClick;
+  }, [onBarClick]);
+
+  useEffect(() => {
+    onRenderReadyRef.current = onRenderReady;
+  }, [onRenderReady]);
 
   const option = useMemo(() => {
     if (data.length === 0) return null;
@@ -171,11 +183,20 @@ export const InvestorActivityEchartsChart = memo(function InvestorActivityEchart
       }
 
       hasReportedRender = true;
-      onRenderReady?.(resolveLatencyMs(renderStartMs));
+      onRenderReadyRef.current?.(resolveLatencyMs(renderStartMs));
 
       if (chartRef.current && !chartRef.current.isDisposed()) {
         chartRef.current.off("finished", handleChartFinished);
       }
+    };
+
+    const handleChartClick = (params: { name?: string; seriesName?: string }) => {
+      if (!onBarClickRef.current || !params.name || !params.seriesName) {
+        return;
+      }
+
+      const action = params.seriesName === "Opened" ? "open" : "close";
+      onBarClickRef.current({ quarter: params.name, action });
     };
 
     const syncChart = () => {
@@ -194,9 +215,11 @@ export const InvestorActivityEchartsChart = memo(function InvestorActivityEchart
 
       chartRef.current = chart;
       chart.off("finished", handleChartFinished);
+      chart.off("click", handleChartClick);
       if (!hasReportedRender) {
         chart.on("finished", handleChartFinished);
       }
+      chart.on("click", handleChartClick);
       chart.resize({ width, height });
       chart.setOption(option, {
         notMerge: true,
@@ -216,9 +239,10 @@ export const InvestorActivityEchartsChart = memo(function InvestorActivityEchart
       const chart = chartRef.current;
       if (chart && !chart.isDisposed()) {
         chart.off("finished", handleChartFinished);
+        chart.off("click", handleChartClick);
       }
     };
-  }, [onRenderReady, option]);
+  }, [option]);
 
   useEffect(() => {
     return () => {
@@ -236,10 +260,10 @@ export const InvestorActivityEchartsChart = memo(function InvestorActivityEchart
 
   if (data.length === 0) {
     return (
-      <Card className="min-w-0">
+      <Card className="min-w-0 h-[450px] overflow-hidden">
         <CardHeader>
           <CardTitle>Investor Activity for {ticker} (ECharts)</CardTitle>
-          <CardDescription>No activity data available</CardDescription>
+          <CardDescription>No investor activity data available</CardDescription>
           {telemetry && (
             <CardAction>
               <LatencyBadge telemetry={telemetry} />
@@ -251,11 +275,11 @@ export const InvestorActivityEchartsChart = memo(function InvestorActivityEchart
   }
 
   return (
-    <Card className="min-w-0">
+    <Card className="min-w-0 h-[450px] overflow-hidden">
       <CardHeader>
         <CardTitle>Investor Activity for {ticker} (ECharts)</CardTitle>
         <CardDescription>
-          Alternative rendering using Apache ECharts with opened (green) vs closed (red) positions.
+          Opened (green) vs closed (red) positions by quarter. Click a bar to update the drilldown table.
         </CardDescription>
         {telemetry && (
           <CardAction>
@@ -263,7 +287,7 @@ export const InvestorActivityEchartsChart = memo(function InvestorActivityEchart
           </CardAction>
         )}
       </CardHeader>
-      <CardContent className="h-[450px] w-full min-w-0">
+      <CardContent className="h-[calc(100%-88px)] w-full min-w-0">
         <div ref={containerRef} className="h-full w-full min-w-0" />
       </CardContent>
     </Card>

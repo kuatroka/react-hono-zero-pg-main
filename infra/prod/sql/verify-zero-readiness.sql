@@ -78,6 +78,26 @@ BEGIN
     RAISE EXCEPTION 'serving.cusip_quarter_investor_activity_detail must have a primary key for Zero sync';
   END IF;
 
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_indexes
+    WHERE schemaname = 'serving'
+      AND tablename = 'cusip_quarter_investor_activity_detail'
+      AND indexname = 'idx_cqia_detail_open_lookup'
+  ) THEN
+    RAISE EXCEPTION 'serving.cusip_quarter_investor_activity_detail must have idx_cqia_detail_open_lookup for drilldown open lookups';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_indexes
+    WHERE schemaname = 'serving'
+      AND tablename = 'cusip_quarter_investor_activity_detail'
+      AND indexname = 'idx_cqia_detail_close_lookup'
+  ) THEN
+    RAISE EXCEPTION 'serving.cusip_quarter_investor_activity_detail must have idx_cqia_detail_close_lookup for drilldown close lookups';
+  END IF;
+
   IF to_regclass('app_state.user_counters') IS NULL THEN
     RAISE EXCEPTION 'app_state.user_counters is missing';
   END IF;

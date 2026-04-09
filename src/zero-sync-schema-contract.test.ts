@@ -15,11 +15,13 @@ describe("serving Zero-sync schema contract", () => {
     const detailPkMigration = readProjectFile("docker/migrations/0003_curvy_khan.sql");
     const detailEnsureMigration = readProjectFile("docker/migrations/0004_ensure_zero_sync_key.sql");
     const activityIndexMigration = readProjectFile("docker/migrations/0006_tense_living_mummy.sql");
+    const detailLookupIndexMigration = readProjectFile("docker/migrations/0010_fast_drilldown_lookup.sql");
 
     expect(journal).toContain('"tag": "0001_large_selene"');
     expect(journal).toContain('"tag": "0003_curvy_khan"');
     expect(journal).toContain('"tag": "0004_ensure_zero_sync_key"');
     expect(journal).toContain('"tag": "0006_tense_living_mummy"');
+    expect(journal).toContain('"tag": "0010_fast_drilldown_lookup"');
     expect(activityPkMigration).toContain('ALTER TABLE "cusip_quarter_investor_activity" ALTER COLUMN "id" SET NOT NULL');
     expect(activityPkMigration).toContain('ALTER TABLE "cusip_quarter_investor_activity" ADD PRIMARY KEY ("id")');
     expect(detailPkMigration).toContain('ALTER TABLE "cusip_quarter_investor_activity_detail" ALTER COLUMN "id" SET NOT NULL');
@@ -27,6 +29,8 @@ describe("serving Zero-sync schema contract", () => {
     expect(detailEnsureMigration).toContain("duplicate id values detected");
     expect(activityIndexMigration).toContain('CREATE INDEX "idx_cusip_quarter_activity_cusip_quarter"');
     expect(activityIndexMigration).toContain('CREATE INDEX "idx_cusip_quarter_activity_ticker_quarter"');
+    expect(detailLookupIndexMigration).toContain('CREATE INDEX IF NOT EXISTS "idx_cqia_detail_open_lookup"');
+    expect(detailLookupIndexMigration).toContain('CREATE INDEX IF NOT EXISTS "idx_cqia_detail_close_lookup"');
   });
 
   test("readiness check enforces the detail-table primary key contract", () => {
@@ -40,6 +44,7 @@ describe("serving Zero-sync schema contract", () => {
 
   test("investor activity zero-sync path preserves the secondary lookup indexes needed for warm local-like chart latency", () => {
     const migration = readProjectFile("docker/migrations/0006_tense_living_mummy.sql");
+    const detailMigration = readProjectFile("docker/migrations/0010_fast_drilldown_lookup.sql");
     const readiness = readProjectFile("infra/prod/sql/verify-zero-readiness.sql");
 
     expect(migration).toContain(
@@ -53,6 +58,14 @@ describe("serving Zero-sync schema contract", () => {
     );
     expect(readiness).toContain(
       "serving.cusip_quarter_investor_activity must have idx_cusip_quarter_activity_ticker_quarter for Zero chart lookups"
+    );
+    expect(detailMigration).toContain('CREATE INDEX IF NOT EXISTS "idx_cqia_detail_open_lookup"');
+    expect(detailMigration).toContain('CREATE INDEX IF NOT EXISTS "idx_cqia_detail_close_lookup"');
+    expect(readiness).toContain(
+      "serving.cusip_quarter_investor_activity_detail must have idx_cqia_detail_open_lookup for drilldown open lookups"
+    );
+    expect(readiness).toContain(
+      "serving.cusip_quarter_investor_activity_detail must have idx_cqia_detail_close_lookup for drilldown close lookups"
     );
   });
 

@@ -71,6 +71,13 @@
       "when": 1774564145761,
       "tag": "0009_create_zero_app_publication",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1775680260080,
+      "tag": "0010_fast_drilldown_lookup",
+      "breakpoints": true
     }
   ]
 }

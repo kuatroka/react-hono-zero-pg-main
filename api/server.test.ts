@@ -74,6 +74,41 @@ describe("createSpaFetchHandler", () => {
     expect(response.headers.get("set-cookie")).toContain("jwt=");
   });
 
+  test("serves investor drilldown rows from the API without going through Zero schema replication", async () => {
+    const sql = mock(async () => [
+      {
+        id: 1,
+        cik: "123456",
+        cikName: "Alpha Capital",
+        cikTicker: "ALPH",
+        quarter: "2024Q4",
+        action: "open",
+      },
+    ]);
+    mock.module("./db", () => ({ sql }));
+
+    const distDir = makeTempDir();
+    const handler = createSpaFetchHandler({ distDir });
+    const response = await handler(
+      new Request("http://localhost/api/investor-activity-drilldown?ticker=GBNK&cusip=40075T102&quarter=2024Q4&action=open"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      rows: [
+        {
+          id: 1,
+          cik: "123456",
+          cikName: "Alpha Capital",
+          cikTicker: "ALPH",
+          quarter: "2024Q4",
+          action: "open",
+        },
+      ],
+    });
+    expect(sql).toHaveBeenCalledTimes(1);
+  });
+
   test("serves static assets from dist when present", async () => {
     const distDir = makeTempDir();
     mkdirSync(path.join(distDir, "assets"), { recursive: true });
