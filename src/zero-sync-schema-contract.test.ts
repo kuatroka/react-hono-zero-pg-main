@@ -32,8 +32,8 @@ describe("serving Zero-sync schema contract", () => {
     expect(detailPkMigration).toContain('ALTER TABLE "cusip_quarter_investor_activity_detail" ALTER COLUMN "id" SET NOT NULL');
     expect(detailPkMigration).toContain('ALTER TABLE "cusip_quarter_investor_activity_detail" ADD PRIMARY KEY ("id")');
     expect(detailEnsureMigration).toContain("duplicate id values detected");
-    expect(activityIndexMigration).toContain('CREATE INDEX "idx_cusip_quarter_activity_cusip_quarter"');
-    expect(activityIndexMigration).toContain('CREATE INDEX "idx_cusip_quarter_activity_ticker_quarter"');
+    expect(activityIndexMigration).toContain('CREATE INDEX IF NOT EXISTS "idx_cusip_quarter_activity_cusip_quarter"');
+    expect(activityIndexMigration).toContain('CREATE INDEX IF NOT EXISTS "idx_cusip_quarter_activity_ticker_quarter"');
     expect(publicationMigration).not.toContain("serving.cusip_quarter_investor_activity_detail");
     expect(dropDetailLookupIndexesMigration).toContain('DROP INDEX IF EXISTS "serving"."idx_cqia_detail_open_lookup"');
     expect(dropDetailLookupIndexesMigration).toContain('DROP INDEX IF EXISTS "serving"."idx_cqia_detail_close_lookup"');
@@ -78,10 +78,10 @@ describe("serving Zero-sync schema contract", () => {
     const readiness = readProjectFile("infra/prod/sql/verify-zero-readiness.sql");
 
     expect(migration).toContain(
-      'CREATE INDEX "idx_cusip_quarter_activity_cusip_quarter" ON "cusip_quarter_investor_activity" USING btree ("cusip","quarter")'
+      'CREATE INDEX IF NOT EXISTS "idx_cusip_quarter_activity_cusip_quarter" ON "cusip_quarter_investor_activity" USING btree ("cusip","quarter")'
     );
     expect(migration).toContain(
-      'CREATE INDEX "idx_cusip_quarter_activity_ticker_quarter" ON "cusip_quarter_investor_activity" USING btree ("ticker","quarter")'
+      'CREATE INDEX IF NOT EXISTS "idx_cusip_quarter_activity_ticker_quarter" ON "cusip_quarter_investor_activity" USING btree ("ticker","quarter")'
     );
     expect(readiness).toContain(
       "serving.cusip_quarter_investor_activity must have idx_cusip_quarter_activity_cusip_quarter for Zero chart lookups"
