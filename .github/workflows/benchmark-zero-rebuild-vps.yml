@@ -71,22 +71,13 @@ jobs:
             compose rm -f zero-cache || true
             docker volume rm -f "${ZERO_REPLICA_VOLUME_NAME}" || true
 
-            LOG_FILE="/tmp/zero-rebuild-${LABEL}-$(date +%s).log"
             SUMMARY_FILE="/tmp/zero-rebuild-${LABEL}-summary.json"
 
             compose up -d zero-cache
-            compose logs -f --no-color zero-cache >"$LOG_FILE" 2>&1 &
-            LOG_PID=$!
 
-            cleanup() {
-              kill "$LOG_PID" >/dev/null 2>&1 || true
-            }
+            PYTHON_CODE=$'import json, subprocess, sys, time\nsummary_path, container_name, replica_file, label = sys.argv[1:]\nstart = time.time()\ntimeout_seconds = 90 * 60\nmarker = \"ZeroEvent: zero/events/status/replication/v1 \"\nfinal_event = None\n\ndef replica_size_bytes():\n    result = subprocess.run([\"docker\", \"exec\", container_name, \"sh\", \"-lc\", f\"if [ -f \\\\\\\"{replica_file}\\\\\\\" ]; then wc -c < \\\\\\\"{replica_file}\\\\\\\"; else echo 0; fi\"], capture_output=True, text=True, check=False)\n    output = (result.stdout or \"\").strip()\n    return int(output) if output.isdigit() else 0\n\ndef current_logs():\n    result = subprocess.run([\"docker\", \"logs\", container_name], capture_output=True, text=True, check=False)\n    return (result.stdout or \"\") + \"\\n\" + (result.stderr or \"\")\n\nwhile time.time() - start < timeout_seconds:\n    lines = current_logs().splitlines()\n    for line in reversed(lines):\n        marker_index = line.find(marker)\n        if marker_index < 0:\n            continue\n        try:\n            payload = json.loads(line[marker_index + len(marker):])\n        except json.JSONDecodeError:\n            continue\n        download = payload.get(\"state\", {}).get(\"downloadStatus\")\n        if not download:\n            continue\n        if all(item.get(\"rows\") is not None and item.get(\"totalRows\") is not None and int(item[\"rows\"]) >= int(item[\"totalRows\"]) for item in download):\n            final_event = payload\n            break\n    if final_event is not None:\n        break\n    time.sleep(5)\n\nif final_event is None:\n    raise SystemExit(\"Timed out waiting for Zero rebuild completion\")\n\nelapsed_ms = round((time.time() - start) * 1000)\nsummary = {\"label\": label, \"elapsedMs\": elapsed_ms, \"replicaSizeBytes\": replica_size_bytes(), \"tables\": final_event[\"state\"][\"downloadStatus\"]}\nwith open(summary_path, \"w\", encoding=\"utf-8\") as handle:\n    json.dump(summary, handle, indent=2)\nprint(json.dumps(summary, indent=2))'
 
-            trap cleanup EXIT
-
-            PYTHON_CODE=$'import json, subprocess, sys, time\nlog_path, summary_path, container_name, replica_file, label = sys.argv[1:]\nstart = time.time()\ntimeout_seconds = 90 * 60\nmarker = \"ZeroEvent: zero/events/status/replication/v1 \"\nfinal_event = None\n\ndef replica_size_bytes():\n    result = subprocess.run([\"docker\", \"exec\", container_name, \"sh\", \"-lc\", f\"if [ -f \\\\\\\"{replica_file}\\\\\\\" ]; then wc -c < \\\\\\\"{replica_file}\\\\\\\"; else echo 0; fi\"], capture_output=True, text=True, check=False)\n    output = (result.stdout or \"\").strip()\n    return int(output) if output.isdigit() else 0\n\nwhile time.time() - start < timeout_seconds:\n    try:\n        with open(log_path, \"r\", encoding=\"utf-8\", errors=\"ignore\") as handle:\n            lines = handle.readlines()\n    except FileNotFoundError:\n        lines = []\n\n    for line in reversed(lines):\n        marker_index = line.find(marker)\n        if marker_index < 0:\n            continue\n        try:\n            payload = json.loads(line[marker_index + len(marker):])\n        except json.JSONDecodeError:\n            continue\n        download = payload.get(\"state\", {}).get(\"downloadStatus\")\n        if not download:\n            continue\n        if all(item.get(\"rows\") is not None and item.get(\"totalRows\") is not None and int(item[\"rows\"]) >= int(item[\"totalRows\"]) for item in download):\n            final_event = payload\n            break\n    if final_event is not None:\n        break\n    time.sleep(5)\n\nif final_event is None:\n    raise SystemExit(\"Timed out waiting for Zero rebuild completion\")\n\nelapsed_ms = round((time.time() - start) * 1000)\nsummary = {\"label\": label, \"elapsedMs\": elapsed_ms, \"replicaSizeBytes\": replica_size_bytes(), \"tables\": final_event[\"state\"][\"downloadStatus\"]}\nwith open(summary_path, \"w\", encoding=\"utf-8\") as handle:\n    json.dump(summary, handle, indent=2)\nprint(json.dumps(summary, indent=2))'
-
-            python3 -c "$PYTHON_CODE" "$LOG_FILE" "$SUMMARY_FILE" "$ZERO_CONTAINER_NAME" "$ZERO_REPLICA_FILE" "$LABEL"
+            python3 -c "$PYTHON_CODE" "$SUMMARY_FILE" "$ZERO_CONTAINER_NAME" "$ZERO_REPLICA_FILE" "$LABEL"
 
             echo "APP_PUBLIC_URL=$APP_PUBLIC_URL"
             echo "ZERO_PUBLIC_URL=$ZERO_PUBLIC_URL"
