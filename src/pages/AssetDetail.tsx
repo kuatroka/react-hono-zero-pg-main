@@ -6,6 +6,9 @@ import { InvestorActivityDrilldownTable } from '@/components/InvestorActivityDri
 import { resolveDefaultInvestorActivitySelection } from '@/lib/investor-activity-selection';
 import { useLatencyMs } from '@/lib/latency';
 import { createLegacyPerfTelemetry, createPerfTelemetry } from '@/lib/perf/telemetry';
+import { preloadAssetDetail } from '@/lib/preload-asset-detail';
+import type { Schema } from '@/schema';
+import { useZero } from '@/zero-client';
 import { queries } from '@/zero/queries';
 import { PRELOAD_TTL } from '@/zero-preload';
 import { InvestorActivityEchartsChart } from '@/components/charts/InvestorActivityEchartsChart';
@@ -42,7 +45,7 @@ const AssetDetailHeader = memo(function AssetDetailHeader({
   );
 });
 
-const AssetDetailActivityGrid = memo(function AssetDetailActivityGrid({
+const AssetDetailActivityGridInner = memo(function AssetDetailActivityGridInner({
   asset,
   cusip,
   activityRows,
@@ -69,6 +72,12 @@ const AssetDetailActivityGrid = memo(function AssetDetailActivityGrid({
   }), [activityDataLatencyMs, echartsRenderLatencyMs]);
   const defaultInvestorActivitySelection = resolveDefaultInvestorActivitySelection(activityRows);
   const resolvedInvestorActivitySelection = selectedInvestorActivity ?? defaultInvestorActivitySelection;
+  const resolvedInvestorActivityRow = useMemo(
+    () => resolvedInvestorActivitySelection
+      ? activityRows.find((row) => row.quarter === resolvedInvestorActivitySelection.quarter) ?? null
+      : null,
+    [activityRows, resolvedInvestorActivitySelection],
+  );
   const handleInvestorActivityBarClick = useCallback((selection: { quarter: string; action: 'open' | 'close' }) => {
     setSelectedInvestorActivity((currentSelection) => (
       currentSelection?.quarter === selection.quarter && currentSelection.action === selection.action
@@ -76,14 +85,6 @@ const AssetDetailActivityGrid = memo(function AssetDetailActivityGrid({
         : selection
     ));
   }, []);
-
-  useEffect(() => {
-    setEchartsRenderLatencyMs(null);
-  }, [activityRows.length, asset, cusip]);
-
-  useEffect(() => {
-    setSelectedInvestorActivity(null);
-  }, [asset, cusip]);
 
   return (
     <div className="mt-8 px-4 pb-8 sm:px-6 lg:px-8">
@@ -98,9 +99,19 @@ const AssetDetailActivityGrid = memo(function AssetDetailActivityGrid({
         <div className="min-w-0">
           {resolvedInvestorActivitySelection ? (
             <InvestorActivityDrilldownTable
+              key={`${asset}:${cusip ?? 'no-cusip'}`}
               ticker={asset}
               cusip={cusip}
               selection={resolvedInvestorActivitySelection}
+              detailRange={
+                typeof resolvedInvestorActivityRow?.minDetailId === 'number'
+                  && typeof resolvedInvestorActivityRow?.maxDetailId === 'number'
+                  ? {
+                    minDetailId: resolvedInvestorActivityRow.minDetailId,
+                    maxDetailId: resolvedInvestorActivityRow.maxDetailId,
+                  }
+                  : null
+              }
             />
           ) : (
             <div className="rounded-lg border border-border bg-card px-4 py-8 text-center text-muted-foreground">
@@ -113,8 +124,35 @@ const AssetDetailActivityGrid = memo(function AssetDetailActivityGrid({
   );
 });
 
-export function AssetDetailPage({ onReady }: { onReady: () => void }) {
-  const { code, cusip } = useParams();
+const AssetDetailActivityGrid = memo(function AssetDetailActivityGrid({
+  asset,
+  cusip,
+  activityRows,
+}: {
+  asset: string;
+  cusip: string | null;
+  activityRows: readonly CusipQuarterInvestorActivity[];
+}) {
+  return (
+    <AssetDetailActivityGridInner
+      key={`${asset}:${cusip ?? 'no-cusip'}:${activityRows.length}`}
+      asset={asset}
+      cusip={cusip}
+      activityRows={activityRows}
+    />
+  );
+});
+
+export function AssetDetailPage({
+  onReady,
+  params,
+}: {
+  onReady: () => void;
+  params?: { code?: string; cusip?: string };
+}) {
+  const z = useZero<Schema>();
+  const routeParams = useParams();
+  const { code, cusip } = params ?? routeParams;
 
   // Determine if we have a valid cusip (not "_" placeholder)
   const hasCusip = cusip && cusip !== "_";
@@ -169,6 +207,29 @@ export function AssetDetailPage({ onReady }: { onReady: () => void }) {
       onReady();
     }
   }, [record, result.type, onReady]);
+
+  useEffect(() => {
+    if (!record?.asset) {
+      return;
+    }
+
+    preloadAssetDetail(z, {
+      ticker: record.asset,
+      cusip: record.cusip ?? null,
+    });
+  }, [record?.asset, record?.cusip, z]);
+
+  useEffect(() => {
+    if (!record?.asset || activityRows.length === 0) {
+      return;
+    }
+
+    preloadAssetDetail(z, {
+      ticker: record.asset,
+      cusip: record.cusip ?? null,
+      activityRows,
+    });
+  }, [activityRows, record?.asset, record?.cusip, z]);
 
   if (!code) return <div className="p-6">Missing asset code.</div>;
 

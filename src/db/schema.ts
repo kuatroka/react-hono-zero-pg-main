@@ -7,6 +7,7 @@ import {
   index,
   pgSchema,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uuid,
@@ -158,6 +159,8 @@ export const cusipQuarterInvestorActivity = servingSchema.table(
     numReduce: bigint("num_reduce", { mode: "number" }),
     numClose: bigint("num_close", { mode: "number" }),
     numHold: bigint("num_hold", { mode: "number" }),
+    minDetailId: bigint("min_detail_id", { mode: "number" }),
+    maxDetailId: bigint("max_detail_id", { mode: "number" }),
   },
   (table) => [
     index("idx_cusip_quarter_activity_cusip_quarter").on(table.cusip, table.quarter),
@@ -179,8 +182,55 @@ export const cusipQuarterInvestorActivityDetail = servingSchema.table(
     didClose: boolean("did_close"),
     didHold: boolean("did_hold"),
   },
+);
+
+export const assetInvestorActivityDrilldownZero = servingSchema.table(
+  "asset_investor_activity_drilldown_zero",
+  {
+    id: text("id").notNull(),
+    assetKey: text("asset_key").notNull(),
+    ticker: text("ticker").notNull(),
+    cusip: text("cusip"),
+    quarter: text("quarter").notNull(),
+    action: text("action").notNull(),
+    cikName: text("cik_name").notNull(),
+    cik: text("cik").notNull(),
+    cikTicker: text("cik_ticker").notNull(),
+    detailId: bigint("detail_id", { mode: "number" }).notNull(),
+    hydratedAt: timestamp("hydrated_at").defaultNow().notNull(),
+  },
   (table) => [
-    index("idx_cqia_detail_open_lookup").on(table.ticker, table.quarter, table.cusip, table.id),
-    index("idx_cqia_detail_close_lookup").on(table.ticker, table.quarter, table.cusip, table.id),
+    check(
+      "asset_investor_activity_drilldown_zero_action_check",
+      sql`${table.action} IN ('open', 'close')`
+    ),
+    primaryKey({
+      columns: [table.assetKey, table.quarter, table.action, table.cikName, table.cik, table.detailId],
+    }),
+  ]
+);
+
+export const assetInvestorActivityDrilldownHydration = servingSchema.table(
+  "asset_investor_activity_drilldown_hydration",
+  {
+    assetKey: text("asset_key").primaryKey(),
+    ticker: text("ticker").notNull(),
+    cusip: text("cusip"),
+    status: text("status").notNull(),
+    defaultQuarter: text("default_quarter"),
+    defaultAction: text("default_action"),
+    rowCount: bigint("row_count", { mode: "number" }).notNull().default(0),
+    hydratedAt: timestamp("hydrated_at"),
+    errorMessage: text("error_message"),
+  },
+  (table) => [
+    check(
+      "asset_investor_activity_drilldown_hydration_status_check",
+      sql`${table.status} IN ('pending', 'ready', 'error')`
+    ),
+    check(
+      "asset_investor_activity_drilldown_hydration_default_action_check",
+      sql`${table.defaultAction} IS NULL OR ${table.defaultAction} IN ('open', 'close')`
+    ),
   ]
 );

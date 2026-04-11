@@ -25,3 +25,5 @@ export const zero = {
     return getZero().userID;
   }
 };
+
+export { useZero };

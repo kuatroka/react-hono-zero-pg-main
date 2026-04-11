@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React from "react";
-import { beforeEach, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, expect, mock, test } from "bun:test";
 
 type InvestorActivityAction = "open" | "close";
 
@@ -11,6 +11,8 @@ type ActivityRow = {
   quarter: string;
   numOpen: number;
   numClose: number;
+  minDetailId?: number | null;
+  maxDetailId?: number | null;
 };
 
 type MockQuery = {
@@ -23,8 +25,8 @@ type MockQuery = {
 let currentParams: { code?: string; cusip?: string } = {};
 let currentAssetRows: Array<{ id: number; asset: string; assetName: string; cusip: string }> = [];
 let currentActivityRows: ActivityRow[] = [];
-let currentDrilldownRows: Array<{ id: number; cik: number; quarter: string; cusip: string | null; ticker: string }> = [];
 let currentSuperinvestorRows: Array<{ cik: string; cikName: string; cikTicker: string }> = [];
+let preloadAssetDetailCalls: Array<{ ticker: string; cusip: string | null; activityRows?: ActivityRow[] }> = [];
 let uplotRendered = false;
 let chartProps: any = null;
 let drilldownProps: any = null;
@@ -77,14 +79,31 @@ function resetState() {
   currentParams = { code: "GBNK", cusip: "40075T102" };
   currentAssetRows = [{ id: 1, asset: "GBNK", assetName: "Green Bank", cusip: "40075T102" }];
   currentActivityRows = [];
-  currentDrilldownRows = [];
   currentSuperinvestorRows = [];
+  preloadAssetDetailCalls = [];
   uplotRendered = false;
   chartProps = null;
   drilldownProps = null;
 }
 
 function registerModuleMocks() {
+  mock.module("@/zero/queries", () => ({
+    queries: {
+      assetBySymbol: (symbol: string) => ({
+        customQueryID: { name: "assets.bySymbol", args: [symbol] },
+      }),
+      assetBySymbolAndCusip: (symbol: string, cusip: string) => ({
+        customQueryID: { name: "assets.bySymbolAndCusip", args: [symbol, cusip] },
+      }),
+      investorActivityByTicker: (ticker: string) => ({
+        customQueryID: { name: "investorActivity.byTicker", args: [ticker] },
+      }),
+      investorActivityByCusip: (cusip: string) => ({
+        customQueryID: { name: "investorActivity.byCusip", args: [cusip] },
+      }),
+    },
+  }));
+
   mock.module("react-router-dom", () => ({
     Link: (props: any) => React.createElement("a", props, props.children),
     useParams: () => currentParams,
@@ -103,12 +122,6 @@ function registerModuleMocks() {
         case "investorActivity.byTicker":
           return [currentActivityRows, { type: currentActivityRows.length > 0 ? "complete" : "unknown" }];
 
-        case "investorActivity.drilldownBySelection": {
-          const [, cusip, quarter] = query.customQueryID?.args ?? [];
-          const rows = currentDrilldownRows.filter((row) => row.quarter === quarter && (cusip == null ? true : row.cusip === cusip));
-          return [rows, { type: rows.length > 0 ? "complete" : "unknown" }];
-        }
-
         case "superinvestors.byCiks": {
           const [ciks] = query.customQueryID?.args ?? [[]];
           const selected = new Set(Array.isArray(ciks) ? ciks.map(String) : []);
@@ -122,8 +135,25 @@ function registerModuleMocks() {
     },
   }));
 
+  mock.module("@/zero-client", () => ({
+    useZero: () => ({}),
+  }));
+
   mock.module("@/lib/latency", () => ({
+    resolveLatencyMs: (startMs: number, endMs = startMs + 0.1, minimumVisibleMs = 0.1) =>
+      Math.max(endMs - startMs, minimumVisibleMs),
     useLatencyMs: () => 0,
+  }));
+
+  mock.module("@/lib/perf/telemetry", () => ({
+    createLegacyPerfTelemetry: (telemetry: any) => telemetry,
+    createPerfTelemetry: (telemetry: any) => telemetry,
+  }));
+
+  mock.module("@/lib/preload-asset-detail", () => ({
+    preloadAssetDetail: (_z: unknown, params: { ticker: string; cusip: string | null; activityRows?: ActivityRow[] }) => {
+      preloadAssetDetailCalls.push(params);
+    },
   }));
 
   mock.module("@/components/charts/InvestorActivityUplotChart", () => ({
@@ -155,9 +185,15 @@ function registerModuleMocks() {
   }));
 }
 
+registerModuleMocks();
+
 beforeEach(async () => {
   resetState();
   registerModuleMocks();
+});
+
+afterEach(() => {
+  mock.restore();
 });
 
 async function createHookHarness(props: any) {
@@ -304,19 +340,15 @@ async function createHookHarness(props: any) {
 
 test("defaults the drilldown to the latest quarter's open positions and removes the uPlot chart", async () => {
   currentActivityRows = [
-    { id: 1, cusip: "40075T102", ticker: "GBNK", quarter: "2024Q3", numOpen: 1, numClose: 0 },
-    { id: 2, cusip: "40075T102", ticker: "GBNK", quarter: "2024Q4", numOpen: 4, numClose: 2 },
-  ];
-  currentDrilldownRows = [
-    { id: 101, cik: 123456, quarter: "2024Q4", cusip: "40075T102", ticker: "GBNK" },
-    { id: 102, cik: 789012, quarter: "2024Q4", cusip: "40075T102", ticker: "GBNK" },
+    { id: 1, cusip: "40075T102", ticker: "GBNK", quarter: "2024Q3", numOpen: 1, numClose: 0, minDetailId: 10, maxDetailId: 19 },
+    { id: 2, cusip: "40075T102", ticker: "GBNK", quarter: "2024Q4", numOpen: 4, numClose: 2, minDetailId: 20, maxDetailId: 39 },
   ];
   currentSuperinvestorRows = [
     { cik: "123456", cikName: "Alpha Capital", cikTicker: "ALPH" },
     { cik: "789012", cikName: "Beta Partners", cikTicker: "BETA" },
   ];
 
-  const harness = await createHookHarness({ onReady: () => undefined });
+  const harness = await createHookHarness({ onReady: () => undefined, params: currentParams });
   harness.settle();
 
   expect(uplotRendered).toBe(false);
@@ -328,22 +360,34 @@ test("defaults the drilldown to the latest quarter's open positions and removes 
       quarter: "2024Q4",
       action: "open",
     },
+    detailRange: {
+      minDetailId: 20,
+      maxDetailId: 39,
+    },
   });
+  expect(preloadAssetDetailCalls).toEqual([
+    { ticker: "GBNK", cusip: "40075T102" },
+    {
+      ticker: "GBNK",
+      cusip: "40075T102",
+      activityRows: [
+        { id: 1, cusip: "40075T102", ticker: "GBNK", quarter: "2024Q3", numOpen: 1, numClose: 0, minDetailId: 10, maxDetailId: 19 },
+        { id: 2, cusip: "40075T102", ticker: "GBNK", quarter: "2024Q4", numOpen: 4, numClose: 2, minDetailId: 20, maxDetailId: 39 },
+      ],
+    },
+  ]);
 });
 
 test("falls back to closed positions when the latest quarter has no opens", async () => {
   currentActivityRows = [
-    { id: 1, cusip: "40075T102", ticker: "GBNK", quarter: "2024Q3", numOpen: 1, numClose: 0 },
-    { id: 2, cusip: "40075T102", ticker: "GBNK", quarter: "2024Q4", numOpen: 0, numClose: 3 },
-  ];
-  currentDrilldownRows = [
-    { id: 201, cik: 222333, quarter: "2024Q4", cusip: "40075T102", ticker: "GBNK" },
+    { id: 1, cusip: "40075T102", ticker: "GBNK", quarter: "2024Q3", numOpen: 1, numClose: 0, minDetailId: 10, maxDetailId: 19 },
+    { id: 2, cusip: "40075T102", ticker: "GBNK", quarter: "2024Q4", numOpen: 0, numClose: 3, minDetailId: 20, maxDetailId: 39 },
   ];
   currentSuperinvestorRows = [
     { cik: "222333", cikName: "Gamma Fund", cikTicker: "GAM" },
   ];
 
-  const harness = await createHookHarness({ onReady: () => undefined });
+  const harness = await createHookHarness({ onReady: () => undefined, params: currentParams });
   harness.settle();
 
   expect(drilldownProps).toMatchObject({
@@ -351,22 +395,24 @@ test("falls back to closed positions when the latest quarter has no opens", asyn
       quarter: "2024Q4",
       action: "close",
     },
+    detailRange: {
+      minDetailId: 20,
+      maxDetailId: 39,
+    },
   });
 });
 
 test("clicking a bar in the eCharts chart replaces the default drilldown selection", async () => {
   currentActivityRows = [
-    { id: 1, cusip: "40075T102", ticker: "GBNK", quarter: "2024Q3", numOpen: 1, numClose: 0 },
-    { id: 2, cusip: "40075T102", ticker: "GBNK", quarter: "2024Q4", numOpen: 4, numClose: 2 },
-  ];
-  currentDrilldownRows = [
-    { id: 301, cik: 111111, quarter: "2024Q2", cusip: "40075T102", ticker: "GBNK" },
+    { id: 1, cusip: "40075T102", ticker: "GBNK", quarter: "2024Q2", numOpen: 0, numClose: 1, minDetailId: 1, maxDetailId: 9 },
+    { id: 2, cusip: "40075T102", ticker: "GBNK", quarter: "2024Q3", numOpen: 1, numClose: 0, minDetailId: 10, maxDetailId: 19 },
+    { id: 3, cusip: "40075T102", ticker: "GBNK", quarter: "2024Q4", numOpen: 4, numClose: 2, minDetailId: 20, maxDetailId: 39 },
   ];
   currentSuperinvestorRows = [
     { cik: "111111", cikName: "Delta Ventures", cikTicker: "DELTA" },
   ];
 
-  const harness = await createHookHarness({ onReady: () => undefined });
+  const harness = await createHookHarness({ onReady: () => undefined, params: currentParams });
   harness.settle();
 
   chartProps.onBarClick?.({ quarter: "2024Q2", action: "close" } satisfies { quarter: string; action: InvestorActivityAction });
@@ -376,6 +422,10 @@ test("clicking a bar in the eCharts chart replaces the default drilldown selecti
     selection: {
       quarter: "2024Q2",
       action: "close",
+    },
+    detailRange: {
+      minDetailId: 1,
+      maxDetailId: 9,
     },
   });
 });

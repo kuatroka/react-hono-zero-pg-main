@@ -1,10 +1,12 @@
 import { escapeLike, syncedQuery } from "@rocicorp/zero";
 import { z } from "zod";
+import { parseInvestorActivityDrilldownRowKey } from "../lib/investor-activity-drilldown";
 import { builder } from "../schema";
 
 const sortDirectionSchema = z.enum(["asc", "desc"]);
 const assetVirtualSortColumnSchema = z.enum(["asset", "assetName"]);
 const superinvestorVirtualSortColumnSchema = z.enum(["cik", "cikName"]);
+const investorActivityDrilldownVirtualSortColumnSchema = z.enum(["cikName"]);
 
 const assetVirtualStartSchema = z.object({
   id: z.number().int(),
@@ -19,10 +21,21 @@ const superinvestorVirtualStartSchema = z.object({
   cikName: z.string(),
 });
 
+const investorActivityDrilldownVirtualStartSchema = z.object({
+  assetKey: z.string(),
+  quarter: z.string(),
+  action: z.enum(["open", "close"]),
+  cikName: z.string(),
+  cik: z.string(),
+  detailId: z.number().int(),
+});
+
 export type AssetVirtualStartRow = z.infer<typeof assetVirtualStartSchema>;
 export type SuperinvestorVirtualStartRow = z.infer<typeof superinvestorVirtualStartSchema>;
 export type AssetVirtualSortColumn = z.infer<typeof assetVirtualSortColumnSchema>;
 export type SuperinvestorVirtualSortColumn = z.infer<typeof superinvestorVirtualSortColumnSchema>;
+export type InvestorActivityDrilldownVirtualStartRow = z.infer<typeof investorActivityDrilldownVirtualStartSchema>;
+export type InvestorActivityDrilldownVirtualSortColumn = z.infer<typeof investorActivityDrilldownVirtualSortColumnSchema>;
 
 export type AssetVirtualListContext = {
   search: string;
@@ -33,6 +46,15 @@ export type AssetVirtualListContext = {
 export type SuperinvestorVirtualListContext = {
   search: string;
   sortColumn: SuperinvestorVirtualSortColumn;
+  sortDirection: "asc" | "desc";
+};
+
+export type InvestorActivityDrilldownVirtualListContext = {
+  assetKey: string;
+  quarter: string;
+  action: "open" | "close";
+  search: string;
+  sortColumn: InvestorActivityDrilldownVirtualSortColumn;
   sortDirection: "asc" | "desc";
 };
 
@@ -329,6 +351,27 @@ export const queries = {
     (cik) => builder.superinvestors.where("cik", "=", cik).limit(1)
   ),
 
+  superinvestorsByCiks: syncedQuery(
+    "superinvestors.byCiks",
+    z.tuple([z.array(z.string().min(1)).max(5000)]),
+    (ciks) => {
+      if (ciks.length === 0) {
+        return builder.superinvestors.where("id", "=", -1);
+      }
+
+      const [firstCik, ...restCiks] = ciks;
+      return builder.superinvestors
+        .where(({ or, cmp }) =>
+          or(
+            cmp("cik", "=", firstCik),
+            ...restCiks.map((cik) => cmp("cik", "=", cik)),
+          )
+        )
+        .orderBy("cikName", "asc")
+        .orderBy("id", "asc");
+    }
+  ),
+
   investorActivityByTicker: syncedQuery(
     "investorActivity.byTicker",
     z.tuple([z.string().min(1)]),
@@ -345,6 +388,128 @@ export const queries = {
       builder.cusip_quarter_investor_activity
         .where("cusip", "=", cusip)
         .orderBy("quarter", "asc")
+  ),
+
+  investorActivityDrilldownByTicker: syncedQuery(
+    "investorActivity.drilldownByTicker",
+    z.tuple([z.string().min(1), z.string().min(1), z.enum(["open", "close"])]),
+    (ticker, quarter, action) =>
+      builder.cusip_quarter_investor_activity_detail
+        .where("ticker", "=", ticker)
+        .where("quarter", "=", quarter)
+        .where(action === "open" ? "didOpen" : "didClose", "=", true)
+        .orderBy("id", "asc")
+  ),
+
+  investorActivityDrilldownByCusip: syncedQuery(
+    "investorActivity.drilldownByCusip",
+    z.tuple([z.string().min(1), z.string().min(1), z.enum(["open", "close"])]),
+    (cusip, quarter, action) =>
+      builder.cusip_quarter_investor_activity_detail
+        .where("cusip", "=", cusip)
+        .where("quarter", "=", quarter)
+        .where(action === "open" ? "didOpen" : "didClose", "=", true)
+        .orderBy("id", "asc")
+  ),
+
+  investorActivityDrilldownByDetailRange: syncedQuery(
+    "investorActivity.drilldownByDetailRange",
+    z.tuple([
+      z.number().int().positive(),
+      z.number().int().positive(),
+      z.enum(["open", "close"]),
+    ]),
+    (minDetailId, maxDetailId, action) =>
+      builder.cusip_quarter_investor_activity_detail
+        .where("id", ">=", minDetailId)
+        .where("id", "<=", maxDetailId)
+        .where(action === "open" ? "didOpen" : "didClose", "=", true)
+        .orderBy("id", "asc")
+  ),
+
+  investorActivityDrilldownHydration: syncedQuery(
+    "investorActivity.drilldownHydration",
+    z.tuple([z.string().min(1)]),
+    (assetKey) =>
+      builder.asset_investor_activity_drilldown_hydration
+        .where("assetKey", "=", assetKey)
+        .limit(1)
+  ),
+
+  investorActivityDrilldownVirtualPage: syncedQuery(
+    "investorActivity.drilldownVirtualPage",
+    z.tuple([
+      z.number().int().min(1).max(5000),
+      investorActivityDrilldownVirtualStartSchema.nullable(),
+      z.enum(["forward", "backward"]),
+      z.object({
+        assetKey: z.string().min(1),
+        quarter: z.string().min(1),
+        action: z.enum(["open", "close"]),
+        search: z.string(),
+        sortColumn: investorActivityDrilldownVirtualSortColumnSchema,
+        sortDirection: sortDirectionSchema,
+      }),
+    ]),
+    (limit, start, dir, listContextParams) => {
+      const search = listContextParams.search.trim();
+      const orderByDir =
+        dir === "forward"
+          ? listContextParams.sortDirection
+          : listContextParams.sortDirection === "asc"
+            ? "desc"
+            : "asc";
+
+      let query = builder.asset_investor_activity_drilldown_zero
+        .where("assetKey", "=", listContextParams.assetKey)
+        .where("quarter", "=", listContextParams.quarter)
+        .where("action", "=", listContextParams.action)
+        .limit(limit);
+
+      if (search) {
+        const pattern = `%${escapeLike(search)}%`;
+        query = query.where(({ or, cmp }) =>
+          or(
+            cmp("cikName", "ILIKE", pattern),
+            cmp("cik", "ILIKE", pattern),
+            cmp("cikTicker", "ILIKE", pattern),
+          )
+        );
+      }
+
+      query = query
+        .orderBy("cikName", orderByDir)
+        .orderBy("cik", orderByDir)
+        .orderBy("detailId", orderByDir);
+
+      if (start) {
+        query = query.start(start, { inclusive: false });
+      }
+
+      return query;
+    }
+  ),
+
+  investorActivityDrilldownVirtualRowById: syncedQuery(
+    "investorActivity.drilldownVirtualRowById",
+    z.tuple([z.string().min(1)]),
+    (id) => {
+      const parsed = parseInvestorActivityDrilldownRowKey(id);
+      if (!parsed) {
+        return builder.asset_investor_activity_drilldown_zero
+          .where("assetKey", "=", "__missing__")
+          .one();
+      }
+
+      return builder.asset_investor_activity_drilldown_zero
+        .where("assetKey", "=", parsed.assetKey)
+        .where("quarter", "=", parsed.quarter)
+        .where("action", "=", parsed.action)
+        .where("cikName", "=", parsed.cikName)
+        .where("cik", "=", parsed.cik)
+        .where("detailId", "=", parsed.detailId)
+        .one();
+    }
   ),
 
   assetByCusip: syncedQuery(

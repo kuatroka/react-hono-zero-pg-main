@@ -13,6 +13,7 @@ import {
   type AssetVirtualStartRow,
 } from '@/zero/queries';
 import { preload, PRELOAD_TTL } from '@/zero-preload';
+import { preloadAssetDetail } from '@/lib/preload-asset-detail';
 
 export function AssetsTablePage({ onReady }: { onReady: () => void }) {
   const z = useZero<Schema>();
@@ -44,20 +45,18 @@ export function AssetsTablePage({ onReady }: { onReady: () => void }) {
           <a
             href={url}
             onMouseEnter={() => {
-              if (row.cusip) {
-                z.preload(queries.assetBySymbolAndCusip(row.asset, row.cusip), { ttl: PRELOAD_TTL });
-              } else {
-                z.preload(queries.assetBySymbol(row.asset), { ttl: PRELOAD_TTL });
-              }
+              preloadAssetDetail(z, {
+                ticker: row.asset,
+                cusip: row.cusip ?? null,
+              });
             }}
             onClick={(e) => {
               e.preventDefault();
               rowSelectedRef.current = true;
-              if (row.cusip) {
-                z.preload(queries.assetBySymbolAndCusip(row.asset, row.cusip), { ttl: PRELOAD_TTL });
-              } else {
-                z.preload(queries.assetBySymbol(row.asset), { ttl: PRELOAD_TTL });
-              }
+              preloadAssetDetail(z, {
+                ticker: row.asset,
+                cusip: row.cusip ?? null,
+              });
               navigate(url);
             }}
             className={`hover:underline underline-offset-4 cursor-pointer text-foreground outline-none ${isFocused ? 'underline' : ''}`}

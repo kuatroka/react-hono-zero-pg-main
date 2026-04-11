@@ -50,3 +50,25 @@ export function resolveDefaultInvestorActivitySelection(
 
   return { quarter: latestQuarterRow.quarter, action: "open" };
 }
+
+export function listInvestorActivitySelections(
+  rows: readonly InvestorActivityRowPreview[],
+): InvestorActivitySelection[] {
+  const selections: InvestorActivitySelection[] = [];
+
+  for (const row of rows) {
+    if (!row?.quarter) {
+      continue;
+    }
+
+    if (hasPositiveValue(row.numOpen)) {
+      selections.push({ quarter: row.quarter, action: "open" });
+    }
+
+    if (hasPositiveValue(row.numClose)) {
+      selections.push({ quarter: row.quarter, action: "close" });
+    }
+  }
+
+  return selections;
+}

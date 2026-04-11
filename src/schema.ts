@@ -128,8 +128,58 @@ const cusipQuarterInvestorActivity = table("cusip_quarter_investor_activity")
     numReduce: number().from("num_reduce"),
     numClose: number().from("num_close"),
     numHold: number().from("num_hold"),
+    minDetailId: number().from("min_detail_id"),
+    maxDetailId: number().from("max_detail_id"),
   })
   .primaryKey("id");
+
+const cusipQuarterInvestorActivityDetail = table("cusip_quarter_investor_activity_detail")
+  .from("serving.cusip_quarter_investor_activity_detail")
+  .columns({
+    id: number(),
+    cusip: string(),
+    ticker: string(),
+    quarter: string(),
+    cik: number(),
+    didOpen: boolean().from("did_open"),
+    didAdd: boolean().from("did_add"),
+    didReduce: boolean().from("did_reduce"),
+    didClose: boolean().from("did_close"),
+    didHold: boolean().from("did_hold"),
+  })
+  .primaryKey("id");
+
+const assetInvestorActivityDrilldownZero = table("asset_investor_activity_drilldown_zero")
+  .from("serving.asset_investor_activity_drilldown_zero")
+  .columns({
+    id: string(),
+    assetKey: string().from("asset_key"),
+    ticker: string(),
+    cusip: string(),
+    quarter: string(),
+    action: string(),
+    cikName: string().from("cik_name"),
+    cik: string(),
+    cikTicker: string().from("cik_ticker"),
+    detailId: number().from("detail_id"),
+    hydratedAt: number().from("hydrated_at"),
+  })
+  .primaryKey("assetKey", "quarter", "action", "cikName", "cik", "detailId");
+
+const assetInvestorActivityDrilldownHydration = table("asset_investor_activity_drilldown_hydration")
+  .from("serving.asset_investor_activity_drilldown_hydration")
+  .columns({
+    assetKey: string().from("asset_key"),
+    ticker: string(),
+    cusip: string(),
+    status: string(),
+    defaultQuarter: string().from("default_quarter"),
+    defaultAction: string().from("default_action"),
+    rowCount: number().from("row_count"),
+    hydratedAt: number().from("hydrated_at"),
+    errorMessage: string().from("error_message"),
+  })
+  .primaryKey("assetKey");
 
 const messageRelationships = relationships(message, ({ one }) => ({
   sender: one({
@@ -157,6 +207,9 @@ export const schema = createSchema({
     asset,
     superinvestor,
     cusipQuarterInvestorActivity,
+    cusipQuarterInvestorActivityDetail,
+    assetInvestorActivityDrilldownZero,
+    assetInvestorActivityDrilldownHydration,
   ],
   relationships: [messageRelationships],
   enableLegacyMutators: true,
@@ -176,6 +229,9 @@ export type Search = Row<typeof schema.tables.searches>;
 export type Asset = Row<typeof schema.tables.assets>;
 export type Superinvestor = Row<typeof schema.tables.superinvestors>;
 export type CusipQuarterInvestorActivity = Row<typeof schema.tables.cusip_quarter_investor_activity>;
+export type CusipQuarterInvestorActivityDetail = Row<typeof schema.tables.cusip_quarter_investor_activity_detail>;
+export type AssetInvestorActivityDrilldownZero = Row<typeof schema.tables.asset_investor_activity_drilldown_zero>;
+export type AssetInvestorActivityDrilldownHydration = Row<typeof schema.tables.asset_investor_activity_drilldown_hydration>;
 
 // The contents of your decoded JWT.
 type AuthData = {
@@ -255,6 +311,16 @@ export const permissions = await definePermissions<AuthData, Schema>(schema, () 
       },
     },
     assets: {
+      row: {
+        select: ANYONE_CAN,
+      },
+    },
+    asset_investor_activity_drilldown_zero: {
+      row: {
+        select: ANYONE_CAN,
+      },
+    },
+    asset_investor_activity_drilldown_hydration: {
       row: {
         select: ANYONE_CAN,
       },

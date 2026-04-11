@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { LatencyBadge } from "@/components/LatencyBadge";
 import { useLatencyMs } from "@/lib/latency";
 import { navigateTo } from "@/lib/navigation";
+import { preloadAssetDetail } from "@/lib/preload-asset-detail";
 import { Schema } from "@/schema";
 import type { Search } from "@/schema";
 
@@ -111,13 +112,10 @@ const GlobalSearchResultsList = memo(function GlobalSearchResultsList({
           onMouseEnter={() => {
             onHighlight(index);
             if (result.category === "assets") {
-              if (result.cusip) {
-                z.preload(queries.assetBySymbolAndCusip(result.code, result.cusip), { ttl: PRELOAD_TTL });
-                z.preload(queries.investorActivityByCusip(result.cusip), { ttl: PRELOAD_TTL });
-              } else {
-                z.preload(queries.assetBySymbol(result.code), { ttl: PRELOAD_TTL });
-                z.preload(queries.investorActivityByTicker(result.code), { ttl: PRELOAD_TTL });
-              }
+              preloadAssetDetail(z, {
+                ticker: result.code,
+                cusip: result.cusip ?? null,
+              });
             } else if (result.category === "superinvestors") {
               z.preload(queries.superinvestorByCik(result.code), { ttl: PRELOAD_TTL });
             }

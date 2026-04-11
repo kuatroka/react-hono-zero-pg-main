@@ -240,7 +240,7 @@ describe("performance contracts", () => {
     const telemetryCore = readProjectFile("src/lib/perf/telemetry.ts");
     const echartsChart = readProjectFile("src/components/charts/InvestorActivityEchartsChart.tsx");
     const drilldownTable = readProjectFile("src/components/InvestorActivityDrilldownTable.tsx");
-    const localVirtualTable = readProjectFile("src/components/LocalVirtualDataTable.tsx");
+    const zeroVirtualTable = readProjectFile("src/components/ZeroVirtualDataTable.tsx");
     const selectionHelper = readProjectFile("src/lib/investor-activity-selection.ts");
 
     expect(assetDetail).toContain("const AssetDetailHeader = memo(function AssetDetailHeader");
@@ -296,24 +296,23 @@ describe("performance contracts", () => {
     expect(echartsChart).toContain('className="min-w-0 h-[450px] overflow-hidden"');
 
     expect(drilldownTable).toContain("searchPlaceholder=\"Search superinvestors...\"");
-    expect(drilldownTable).toContain("fetch(`/api/investor-activity-drilldown?");
-    expect(drilldownTable).toContain("source: \"api:pg\"");
+    expect(drilldownTable).toContain("queries.investorActivityDrilldownByCusip");
+    expect(drilldownTable).toContain("queries.investorActivityDrilldownByTicker");
+    expect(drilldownTable).toContain("queries.investorActivityDrilldownByDetailRange");
+    expect(drilldownTable).toContain("queries.superinvestorsByCiks(ciks)");
     expect(drilldownTable).toContain("Superinvestors who");
-    expect(drilldownTable).toContain("LatencyBadge telemetry={telemetry}");
-    expect(drilldownTable).toContain("const [cachedRowsBySelection, setCachedRowsBySelection]");
-    expect(drilldownTable).toContain("const selectionKey =");
+    expect(drilldownTable).toContain("LatencyBadge telemetry={tableTelemetry}");
+    expect(drilldownTable).toContain("const [detailRows, detailResult] = useQuery(");
+    expect(drilldownTable).toContain("const [superinvestorRows, superinvestorResult] = useQuery(");
     expect(drilldownTable).toContain("LocalVirtualDataTable");
     expect(drilldownTable).not.toContain("<DataTable");
-    expect(drilldownTable).toContain("setRowsRenderMs(null)");
     expect(drilldownTable).toContain('className="min-w-0 h-[450px] overflow-hidden"');
     expect(drilldownTable).toContain("visibleRowCount={6}");
-    expect(localVirtualTable).toContain("LocalVirtualTableHeaderSearch");
-    expect(localVirtualTable).toContain("Search className");
-    expect(localVirtualTable).toContain("className?: string;");
-    expect(localVirtualTable).toContain('className={cn("space-y-4", className)}');
-    expect(localVirtualTable).toContain("overflow-y-auto");
-    expect(localVirtualTable).toContain("visibleRowCount = DEFAULT_VISIBLE_ROW_COUNT");
-    expect(localVirtualTable).toContain("gridTemplateColumns");
+    expect(zeroVirtualTable).toContain("ZeroVirtualTableHeaderSearch");
+    expect(zeroVirtualTable).toContain("Search className");
+    expect(zeroVirtualTable).toContain("overflow-y-auto");
+    expect(zeroVirtualTable).toContain("visibleRowCount = DEFAULT_VISIBLE_ROW_COUNT");
+    expect(zeroVirtualTable).toContain("gridTemplateColumns");
     expect(selectionHelper).toContain("resolveDefaultInvestorActivitySelection");
   });
 

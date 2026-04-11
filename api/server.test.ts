@@ -74,17 +74,36 @@ describe("createSpaFetchHandler", () => {
     expect(response.headers.get("set-cookie")).toContain("jwt=");
   });
 
-  test("serves investor drilldown rows from the API without going through Zero schema replication", async () => {
-    const sql = mock(async () => [
-      {
-        id: 1,
-        cik: "123456",
-        cikName: "Alpha Capital",
-        cikTicker: "ALPH",
-        quarter: "2024Q4",
-        action: "open",
-      },
-    ]);
+  test("serves investor drilldown rows from the API via aggregate id ranges before reading detail rows", async () => {
+    const sqlCalls: string[] = [];
+    const sql = mock(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const query = String.raw({ raw: strings }, ...values.map(() => "?"));
+      sqlCalls.push(query);
+
+      if (query.includes("FROM information_schema.columns")) {
+        return [{ hasColumns: true }];
+      }
+
+      if (query.includes("FROM serving.cusip_quarter_investor_activity a")) {
+        return [{ minDetailId: 11, maxDetailId: 19 }];
+      }
+
+      if (query.includes("FROM selected_ranges r")) {
+        return [
+          {
+            id: 1,
+            cik: "123456",
+            cikName: "Alpha Capital",
+            cikTicker: "ALPH",
+            quarter: "2024Q4",
+            action: "open",
+          },
+        ];
+      }
+
+      return [];
+    });
+    (sql as typeof sql & { unsafe: (query: string) => string }).unsafe = (query: string) => query;
     mock.module("./db", () => ({ sql }));
 
     const distDir = makeTempDir();
@@ -106,7 +125,112 @@ describe("createSpaFetchHandler", () => {
         },
       ],
     });
-    expect(sql).toHaveBeenCalledTimes(1);
+    expect(sql).toHaveBeenCalledTimes(3);
+    expect(sqlCalls[0]).toContain("FROM information_schema.columns");
+    expect(sqlCalls[1]).toContain("FROM serving.cusip_quarter_investor_activity a");
+    expect(sqlCalls[2]).toContain("FROM selected_ranges r");
+  });
+
+  test("returns no drilldown rows when no aggregate id range exists for the selection", async () => {
+    const sqlCalls: string[] = [];
+    const sql = mock(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const query = String.raw({ raw: strings }, ...values.map(() => "?"));
+      sqlCalls.push(query);
+
+      if (query.includes("FROM information_schema.columns")) {
+        return [{ hasColumns: true }];
+      }
+
+      if (query.includes("FROM serving.cusip_quarter_investor_activity a")) {
+        return [];
+      }
+
+      throw new Error("detail table query should not run without id ranges");
+    });
+    (sql as typeof sql & { unsafe: (query: string) => string }).unsafe = (query: string) => query;
+    mock.module("./db", () => ({ sql }));
+
+    const distDir = makeTempDir();
+    const handler = createSpaFetchHandler({ distDir });
+    const response = await handler(
+      new Request("http://localhost/api/investor-activity-drilldown?ticker=AAPB&cusip=00768Y644&quarter=2026Q1&action=close"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ rows: [] });
+    expect(sql).toHaveBeenCalledTimes(2);
+    expect(sqlCalls[0]).toContain("FROM information_schema.columns");
+    expect(sqlCalls[1]).toContain("FROM serving.cusip_quarter_investor_activity a");
+  });
+
+  test("falls back to primary-key range discovery when aggregate range columns are absent", async () => {
+    const sqlCalls: string[] = [];
+    const rowsById = new Map<number, { id: number; cusip: string; quarter: string }>([
+      [1, { id: 1, cusip: "00768Y643", quarter: "2025Q4" }],
+      [2, { id: 2, cusip: "00768Y643", quarter: "2026Q1" }],
+      [3, { id: 3, cusip: "00768Y643", quarter: "2026Q2" }],
+      [4, { id: 4, cusip: "00768Y644", quarter: "2025Q4" }],
+      [5, { id: 5, cusip: "00768Y644", quarter: "2026Q1" }],
+      [6, { id: 6, cusip: "00768Y644", quarter: "2026Q1" }],
+      [7, { id: 7, cusip: "00768Y644", quarter: "2026Q2" }],
+      [8, { id: 8, cusip: "00768Y645", quarter: "2026Q1" }],
+    ]);
+    const sql = mock(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const query = String.raw({ raw: strings }, ...values.map(() => "?"));
+      sqlCalls.push(query);
+
+      if (query.includes("FROM information_schema.columns")) {
+        return [{ hasColumns: false }];
+      }
+
+      if (query.includes("ORDER BY id DESC")) {
+        return [rowsById.get(8)];
+      }
+
+      if (query.includes("WHERE id =")) {
+        return [rowsById.get(Number(values[0]))];
+      }
+
+      if (query.includes("FROM selected_ranges r")) {
+        return [
+          {
+            id: 6,
+            cik: "654321",
+            cikName: "Fallback Capital",
+            cikTicker: "FBCK",
+            quarter: "2026Q1",
+            action: "close",
+          },
+        ];
+      }
+
+      return [];
+    });
+    (sql as typeof sql & { unsafe: (query: string) => string }).unsafe = (query: string) => query;
+    mock.module("./db", () => ({ sql }));
+
+    const distDir = makeTempDir();
+    const handler = createSpaFetchHandler({ distDir });
+    const response = await handler(
+      new Request("http://localhost/api/investor-activity-drilldown?ticker=AAPB&cusip=00768Y644&quarter=2026Q1&action=close"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      rows: [
+        {
+          id: 6,
+          cik: "654321",
+          cikName: "Fallback Capital",
+          cikTicker: "FBCK",
+          quarter: "2026Q1",
+          action: "close",
+        },
+      ],
+    });
+    expect(sqlCalls[0]).toContain("FROM information_schema.columns");
+    expect(sqlCalls.some((query) => query.includes("WHERE id ="))).toBe(true);
+    expect(sqlCalls.at(-1)).toContain("FROM selected_ranges r");
   });
 
   test("serves static assets from dist when present", async () => {

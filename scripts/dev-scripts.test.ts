@@ -34,4 +34,11 @@ describe("bun-only development scripts", () => {
     expect(scripts["db:seed"]).toContain("source .env");
     expect(scripts["db:seed"]).toContain("bun run scripts/db-seed.ts");
   });
+
+  test("zero rebuild benchmark script is exposed through package.json", () => {
+    const scripts = packageJson.scripts as Record<string, string>;
+
+    expect(scripts["bench:zero-rebuild"]).toContain("scripts/benchmark-zero-rebuild.ts");
+    expect(scripts["test:zero-rebuild-benchmark"]).toContain("scripts/benchmark-zero-rebuild.test.ts");
+  });
 });

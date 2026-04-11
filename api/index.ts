@@ -1,6 +1,8 @@
 import { Hono } from "hono";
 import { setCookie } from "hono/cookie";
 import { SignJWT } from "jose";
+import { hydrateInvestorActivityDrilldown } from "./investor-activity-drilldown-hydration";
+import { resolveDrilldownIdRanges } from "./investor-activity-drilldown-ranges";
 import zeroRoutes from "./routes/zero/get-queries";
 
 export const config = {
@@ -10,6 +12,29 @@ export const config = {
 export const app = new Hono().basePath("/api");
 
 app.route("/zero", zeroRoutes);
+
+app.post("/investor-activity-drilldown/hydrate", async (c) => {
+  try {
+    const payload = await c.req.json() as { ticker?: string; cusip?: string | null };
+    const ticker = payload.ticker?.trim();
+    const cusip = payload.cusip?.trim() || null;
+
+    if (!ticker) {
+      return c.json({ error: "ticker is required" }, 400);
+    }
+
+    const { sql } = await import("./db");
+    const result = await hydrateInvestorActivityDrilldown(sql as never, {
+      ticker,
+      cusip,
+    });
+
+    return c.json(result);
+  } catch (error) {
+    console.error("/api/investor-activity-drilldown/hydrate error", error);
+    return c.json({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
+  }
+});
 
 app.get("/investor-activity-drilldown", async (c) => {
   const ticker = c.req.query("ticker")?.trim();
@@ -31,9 +56,58 @@ app.get("/investor-activity-drilldown", async (c) => {
       quarter: string;
       action: "open" | "close";
     };
+    const {
+      ranges,
+      useLegacyDetailQuery,
+    } = await resolveDrilldownIdRanges(sql, { ticker, quarter, cusip });
 
-    const result: DrilldownApiRow[] = action === "open"
+    if (!useLegacyDetailQuery && ranges.length === 0) {
+      return c.json({ rows: [] });
+    }
+
+    const rangeValuesSql = ranges
+      .map(({ minDetailId, maxDetailId }) => `(${minDetailId}, ${maxDetailId})`)
+      .join(", ");
+
+    const result: DrilldownApiRow[] = useLegacyDetailQuery
+      ? action === "open"
+        ? await sql<DrilldownApiRow[]>`
+            SELECT
+              d.id,
+              d.cik::text AS "cik",
+              s.cik_name AS "cikName",
+              s.cik_ticker AS "cikTicker",
+              d.quarter,
+              CAST('open' AS text) AS "action"
+            FROM serving.cusip_quarter_investor_activity_detail d
+            LEFT JOIN serving.superinvestors s ON s.cik = d.cik::text
+            WHERE d.ticker = ${ticker}
+              AND d.quarter = ${quarter}
+              AND (${cusip}::text IS NULL OR d.cusip = ${cusip})
+              AND d.did_open = true
+            ORDER BY COALESCE(s.cik_name, d.cik::text) ASC, d.id ASC
+          `
+        : await sql<DrilldownApiRow[]>`
+            SELECT
+              d.id,
+              d.cik::text AS "cik",
+              s.cik_name AS "cikName",
+              s.cik_ticker AS "cikTicker",
+              d.quarter,
+              CAST('close' AS text) AS "action"
+            FROM serving.cusip_quarter_investor_activity_detail d
+            LEFT JOIN serving.superinvestors s ON s.cik = d.cik::text
+            WHERE d.ticker = ${ticker}
+              AND d.quarter = ${quarter}
+              AND (${cusip}::text IS NULL OR d.cusip = ${cusip})
+              AND d.did_close = true
+            ORDER BY COALESCE(s.cik_name, d.cik::text) ASC, d.id ASC
+          `
+      : action === "open"
       ? await sql<DrilldownApiRow[]>`
+          WITH selected_ranges(min_detail_id, max_detail_id) AS (
+            VALUES ${sql.unsafe(rangeValuesSql)}
+          )
           SELECT
             d.id,
             d.cik::text AS "cik",
@@ -41,7 +115,9 @@ app.get("/investor-activity-drilldown", async (c) => {
             s.cik_ticker AS "cikTicker",
             d.quarter,
             CAST('open' AS text) AS "action"
-          FROM serving.cusip_quarter_investor_activity_detail d
+          FROM selected_ranges r
+          JOIN serving.cusip_quarter_investor_activity_detail d
+            ON d.id BETWEEN r.min_detail_id AND r.max_detail_id
           LEFT JOIN serving.superinvestors s ON s.cik = d.cik::text
           WHERE d.ticker = ${ticker}
             AND d.quarter = ${quarter}
@@ -50,6 +126,9 @@ app.get("/investor-activity-drilldown", async (c) => {
           ORDER BY COALESCE(s.cik_name, d.cik::text) ASC, d.id ASC
         `
       : await sql<DrilldownApiRow[]>`
+          WITH selected_ranges(min_detail_id, max_detail_id) AS (
+            VALUES ${sql.unsafe(rangeValuesSql)}
+          )
           SELECT
             d.id,
             d.cik::text AS "cik",
@@ -57,7 +136,9 @@ app.get("/investor-activity-drilldown", async (c) => {
             s.cik_ticker AS "cikTicker",
             d.quarter,
             CAST('close' AS text) AS "action"
-          FROM serving.cusip_quarter_investor_activity_detail d
+          FROM selected_ranges r
+          JOIN serving.cusip_quarter_investor_activity_detail d
+            ON d.id BETWEEN r.min_detail_id AND r.max_detail_id
           LEFT JOIN serving.superinvestors s ON s.cik = d.cik::text
           WHERE d.ticker = ${ticker}
             AND d.quarter = ${quarter}

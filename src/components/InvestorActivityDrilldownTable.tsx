@@ -1,163 +1,104 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@rocicorp/zero/react";
 import { Link } from "react-router-dom";
+import { LocalVirtualDataTable, type LocalVirtualColumnDef } from "@/components/LocalVirtualDataTable";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LatencyBadge } from "@/components/LatencyBadge";
-import { LocalVirtualDataTable, type LocalVirtualColumnDef } from "@/components/LocalVirtualDataTable";
+import { useLatencyMs } from "@/lib/latency";
 import { createLegacyPerfTelemetry } from "@/lib/perf/telemetry";
 import type { InvestorActivitySelection } from "@/lib/investor-activity-selection";
-
-type InvestorActivityDrilldownRow = Readonly<{
-  id: number;
-  cik: string;
-  cikName: string;
-  cikTicker: string;
-  quarter: string;
-  action: "open" | "close";
-}>;
-
-type InvestorActivityDrilldownApiRow = Readonly<{
-  id: number;
-  cik: string;
-  cikName: string | null;
-  cikTicker: string | null;
-  quarter: string;
-  action: "open" | "close";
-}>;
+import type { CusipQuarterInvestorActivityDetail, Superinvestor } from "@/schema";
+import { PRELOAD_TTL } from "@/zero-preload";
+import { queries } from "@/zero/queries";
 
 interface InvestorActivityDrilldownTableProps {
   ticker: string;
   cusip: string | null;
   selection: InvestorActivitySelection;
+  detailRange?: Readonly<{
+    minDetailId: number;
+    maxDetailId: number;
+  }> | null;
 }
+
+type InvestorActivityDrilldownRow = {
+  id: number;
+  cik: string;
+  cikName: string;
+  cikTicker: string;
+  quarter: string;
+  action: InvestorActivitySelection["action"];
+};
 
 export function InvestorActivityDrilldownTable({
   ticker,
   cusip,
   selection,
+  detailRange = null,
 }: InvestorActivityDrilldownTableProps) {
-  const [cachedRowsBySelection, setCachedRowsBySelection] = useState<Record<string, readonly InvestorActivityDrilldownApiRow[]>>({});
-  const [queryTimeMs, setQueryTimeMs] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [rowsRenderMs, setRowsRenderMs] = useState<number | null>(null);
-  const renderStartRef = useRef<number | null>(null);
-  const selectionKey = `${ticker}:${cusip ?? "no-cusip"}:${selection.quarter}:${selection.action}`;
-  const detailRows = useMemo(
-    () => cachedRowsBySelection[selectionKey] ?? [],
-    [cachedRowsBySelection, selectionKey],
+  const [detailRows, detailResult] = useQuery(
+    detailRange
+      ? queries.investorActivityDrilldownByDetailRange(
+        detailRange.minDetailId,
+        detailRange.maxDetailId,
+        selection.action,
+      )
+      : cusip
+        ? queries.investorActivityDrilldownByCusip(cusip, selection.quarter, selection.action)
+        : queries.investorActivityDrilldownByTicker(ticker, selection.quarter, selection.action),
+    { ttl: PRELOAD_TTL },
   );
-
-  useEffect(() => {
-    if (!ticker || !selection.quarter) {
-      setCachedRowsBySelection({});
-      setQueryTimeMs(null);
-      setIsLoading(false);
-      setIsError(false);
-      return;
-    }
-
-    const controller = new AbortController();
-    const startedAt = performance.now();
-    const params = new URLSearchParams({
-      ticker,
-      quarter: selection.quarter,
-      action: selection.action,
-    });
-
-    if (cusip) {
-      params.set("cusip", cusip);
-    }
-
-    setIsLoading(true);
-    setIsError(false);
-    setQueryTimeMs(null);
-    setRowsRenderMs(null);
-
-    void (async () => {
-      try {
-        const response = await fetch(`/api/investor-activity-drilldown?${params.toString()}`, {
-          signal: controller.signal,
-        });
-
-        if (!response.ok) {
-          throw new Error(`Drilldown request failed: ${response.status}`);
-        }
-
-        const payload = await response.json() as { rows?: InvestorActivityDrilldownApiRow[] };
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        setCachedRowsBySelection((current) => ({
-          ...current,
-          [selectionKey]: payload.rows ?? [],
-        }));
-        setQueryTimeMs(Math.round(performance.now() - startedAt));
-      } catch (error) {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        console.error("[InvestorActivityDrilldownTable] Failed to load drilldown rows", error);
-        setIsError(true);
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsLoading(false);
-        }
-      }
-    })();
-
-    return () => controller.abort();
-  }, [cusip, selection.action, selection.quarter, selectionKey, ticker]);
-
-  const rows = useMemo<InvestorActivityDrilldownRow[]>(() => {
-    return detailRows.map((row) => ({
-      id: row.id,
-      cik: row.cik,
-      cikName: row.cikName ?? `CIK ${row.cik}`,
-      cikTicker: row.cikTicker ?? "",
-      quarter: row.quarter,
-      action: row.action,
-    }));
-  }, [detailRows]);
-
-  useEffect(() => {
-    if (rows.length === 0) {
-      renderStartRef.current = null;
-      return;
-    }
-
-    renderStartRef.current = performance.now();
-  }, [rows.length, selection.action, selection.quarter, ticker, cusip]);
-
-  useEffect(() => {
-    if (renderStartRef.current == null || rows.length === 0) {
-      return;
-    }
-
-    const rafId = requestAnimationFrame(() => {
-      if (renderStartRef.current == null) {
-        return;
-      }
-
-      setRowsRenderMs(Math.round(performance.now() - renderStartRef.current));
-      renderStartRef.current = null;
-    });
-
-    return () => cancelAnimationFrame(rafId);
-  }, [rows.length, selection.action, selection.quarter, ticker, cusip]);
-
-  const telemetry = useMemo(() => createLegacyPerfTelemetry({
-    label: "drilldown data",
-    ms: queryTimeMs,
-    renderMs: rowsRenderMs,
-    source: "api:pg",
-  }), [queryTimeMs, rowsRenderMs]);
+  const ciks = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (detailRows as CusipQuarterInvestorActivityDetail[])
+            .map((row) => row.cik)
+            .filter((value): value is number => typeof value === "number")
+            .map(String),
+        ),
+      ),
+    [detailRows],
+  );
+  const [superinvestorRows, superinvestorResult] = useQuery(
+    queries.superinvestorsByCiks(ciks),
+    { ttl: PRELOAD_TTL },
+  );
+  const superinvestorsByCik = useMemo(
+    () => new Map(
+      (superinvestorRows as Superinvestor[])
+        .map((row) => [row.cik, row] as const),
+    ),
+    [superinvestorRows],
+  );
 
   const titleAction = selection.action === "open" ? "opened" : "closed";
   const title = `Superinvestors who ${titleAction} positions in ${ticker} (${selection.quarter})`;
+
+  const rows = useMemo<InvestorActivityDrilldownRow[]>(
+    () =>
+      (detailRows as CusipQuarterInvestorActivityDetail[])
+        .map((row) => {
+          const cik = row.cik == null ? "" : String(row.cik);
+          const superinvestor = superinvestorsByCik.get(cik);
+          return {
+            id: row.id,
+            cik,
+            cikName: superinvestor?.cikName || cik || "Unknown superinvestor",
+            cikTicker: superinvestor?.cikTicker || "—",
+            quarter: row.quarter || selection.quarter,
+            action: selection.action,
+          };
+        })
+        .sort((left, right) =>
+          left.cikName.localeCompare(right.cikName)
+          || left.cik.localeCompare(right.cik)
+          || left.id - right.id,
+        ),
+    [detailRows, selection.action, selection.quarter, superinvestorsByCik],
+  );
 
   const columns = useMemo<LocalVirtualColumnDef<InvestorActivityDrilldownRow>[]>(() => [
     {
@@ -178,28 +119,41 @@ export function InvestorActivityDrilldownTable({
     {
       key: "cik",
       header: "CIK",
-      sortable: true,
       searchable: true,
     },
     {
       key: "cikTicker",
       header: "Ticker",
-      sortable: true,
       searchable: true,
     },
     {
       key: "quarter",
       header: "Quarter",
-      sortable: true,
       searchable: true,
     },
     {
       key: "action",
       header: "Action",
-      sortable: true,
       searchable: true,
     },
   ], []);
+  const isLoading = rows.length === 0 && detailResult.type === "unknown";
+  const isReady = detailResult.type === "complete"
+    && (ciks.length === 0 || superinvestorResult.type === "complete");
+  const latencyMs = useLatencyMs({
+    isReady,
+    resetKey: `${ticker}:${cusip ?? ""}:${selection.quarter}:${selection.action}:${detailRange?.minDetailId ?? 0}:${detailRange?.maxDetailId ?? 0}`,
+  });
+  const tableTelemetry = useMemo(
+    () => latencyMs == null
+      ? null
+      : createLegacyPerfTelemetry({
+        label: "drilldown data",
+        ms: latencyMs,
+        source: "zero-client",
+      }),
+    [latencyMs],
+  );
 
   return (
     <Card className="min-w-0 h-[450px] overflow-hidden">
@@ -210,36 +164,21 @@ export function InvestorActivityDrilldownTable({
             Search and sort the investors linked to the selected bar.
           </CardDescription>
         </div>
-        <LatencyBadge telemetry={telemetry} />
+        {tableTelemetry ? <LatencyBadge telemetry={tableTelemetry} /> : null}
       </CardHeader>
       <CardContent className="h-[calc(100%-88px)] min-h-0">
-        {isError ? (
-          <div className="rounded-lg border border-destructive/20 bg-background px-4 py-8 text-center text-destructive">
-            Failed to load drilldown data.
-          </div>
-        ) : isLoading && rows.length === 0 ? (
-          <div className="rounded-lg border border-border bg-background px-4 py-8 text-center text-muted-foreground">
-            Loading drilldown…
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="rounded-lg border border-border bg-background px-4 py-8 text-center text-muted-foreground">
-            No superinvestors found for this selection.
-          </div>
-        ) : (
-          <LocalVirtualDataTable
-            className="h-full"
-            data={rows}
-            columns={columns}
-            defaultSortColumn="cikName"
-            defaultSortDirection="asc"
-            emptyStateLabel="No superinvestors found for this selection."
-            getRowKey={(row) => row.id}
-            gridTemplateColumns="minmax(18rem, 1.8fr) minmax(8rem, 0.9fr) minmax(8rem, 0.8fr) minmax(7rem, 0.8fr) minmax(6rem, 0.6fr)"
-            historyKey={`investor-drilldown:${ticker}:${cusip ?? "no-cusip"}:${selection.quarter}:${selection.action}`}
-            searchPlaceholder="Search superinvestors..."
-            visibleRowCount={6}
-          />
-        )}
+        <LocalVirtualDataTable<InvestorActivityDrilldownRow, "cikName">
+          columns={columns}
+          data={rows}
+          defaultSortColumn="cikName"
+          defaultSortDirection="asc"
+          emptyStateLabel={isLoading ? "Loading drilldown…" : "No superinvestors found for this selection."}
+          getRowKey={(row) => row.id}
+          gridTemplateColumns="minmax(18rem, 1.8fr) minmax(8rem, 0.9fr) minmax(8rem, 0.8fr) minmax(7rem, 0.8fr) minmax(6rem, 0.6fr)"
+          historyKey={`investor-drilldown:${ticker}:${cusip ?? "ticker"}:${selection.quarter}:${selection.action}`}
+          searchPlaceholder="Search superinvestors..."
+          visibleRowCount={6}
+        />
       </CardContent>
     </Card>
   );

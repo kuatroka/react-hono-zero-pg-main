@@ -9,6 +9,7 @@ export const PRELOAD_LIMITS = {
   superinvestorsTable: 500,
   searchAssets: 500,      // Global search: assets category
   searchSuperinvestors: 100, // Global search: superinvestors category
+  assetDrilldown: 100,
 } as const;
 
 /**

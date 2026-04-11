@@ -426,6 +426,19 @@ export function LocalVirtualDataTable<
     });
   }, []);
 
+  const handleSearchEnter = useCallback(() => {
+    focusFirstRow();
+    focusRowElement(0);
+  }, [focusFirstRow, focusRowElement]);
+
+  const handleSearchFocus = useCallback(() => {
+    setFocusedRowIndex(-1);
+  }, []);
+
+  const handleTabToResults = useCallback(() => {
+    focusFirstRow();
+  }, [focusFirstRow]);
+
   useEffect(() => {
     if (focusedRowIndex < 0) {
       return;
@@ -474,13 +487,10 @@ export function LocalVirtualDataTable<
           tableContainerRef={tableContainerRef}
           onArrowDown={focusNextRow}
           onArrowUp={focusPreviousRow}
-          onEnter={() => {
-            focusFirstRow();
-            focusRowElement(0);
-          }}
-          onSearchFocus={() => setFocusedRowIndex(-1)}
+          onEnter={handleSearchEnter}
+          onSearchFocus={handleSearchFocus}
           onSearchValueChange={setInternalSearchValue}
-          onTabToResults={focusFirstRow}
+          onTabToResults={handleTabToResults}
         />
         <LocalVirtualTableHeader
           columns={columns}
