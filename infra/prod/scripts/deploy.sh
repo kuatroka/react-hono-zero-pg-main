@@ -29,6 +29,7 @@ compose() {
 
 cd "$REPO_ROOT"
 
+git reset --hard HEAD
 git fetch origin main
 git checkout main
 git pull --ff-only origin main

@@ -1,0 +1,173 @@
+name: Benchmark Zero Rebuild on VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: Commit SHA or ref to benchmark on the VPS checkout
+        required: true
+        type: string
+      label:
+        description: Short label for the benchmark run
+        required: true
+        type: string
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Benchmark zero-cache rebuild via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          timeout: 120m
+          command_timeout: 120m
+          script: |
+            set -euo pipefail
+
+            APP_DIR="${APP_DIR:-/opt/dev/erudio_app/react-hono-zero-pg-main}"
+            PROD_ENV_FILE="${PROD_ENV_FILE:-/etc/fintellectus/react-hono-zero-pg-main.env}"
+            FALLBACK_ENV_FILE="$APP_DIR/.env.prod"
+            TARGET_REF="${{ inputs.git_ref }}"
+            LABEL="${{ inputs.label }}"
+
+            if [ ! -d "$APP_DIR" ]; then
+              echo "Missing app directory: $APP_DIR"
+              exit 1
+            fi
+
+            if [ ! -f "$PROD_ENV_FILE" ] && [ -f "$FALLBACK_ENV_FILE" ]; then
+              PROD_ENV_FILE="$FALLBACK_ENV_FILE"
+            fi
+
+            if [ ! -f "$PROD_ENV_FILE" ]; then
+              echo "Missing production env file: $PROD_ENV_FILE"
+              exit 1
+            fi
+
+            cd "$APP_DIR"
+
+            set -a
+            . "$PROD_ENV_FILE"
+            set +a
+
+            compose() {
+              docker compose --env-file "$PROD_ENV_FILE" -f "$APP_DIR/infra/prod/docker-compose.yml" "$@"
+            }
+
+            git reset --hard HEAD
+            git fetch origin main --tags
+            git checkout -f "$TARGET_REF"
+
+            compose config >/dev/null
+            compose build app permissions
+            compose up -d postgres
+
+            bash infra/prod/scripts/apply-postgres-bootstrap.sh "$PROD_ENV_FILE"
+            bash infra/prod/scripts/deploy-zero-permissions.sh "$PROD_ENV_FILE"
+            compose up -d app
+
+            compose stop zero-cache || true
+            compose rm -f zero-cache || true
+            docker volume rm -f "${ZERO_REPLICA_VOLUME_NAME}" || true
+
+            LOG_FILE="/tmp/zero-rebuild-${LABEL}-$(date +%s).log"
+            SUMMARY_FILE="/tmp/zero-rebuild-${LABEL}-summary.json"
+
+            compose up -d zero-cache
+            compose logs -f --no-color zero-cache >"$LOG_FILE" 2>&1 &
+            LOG_PID=$!
+
+            cleanup() {
+              kill "$LOG_PID" >/dev/null 2>&1 || true
+            }
+
+            trap cleanup EXIT
+
+            python3 - "$LOG_FILE" "$SUMMARY_FILE" "$ZERO_CONTAINER_NAME" "$ZERO_REPLICA_FILE" "$LABEL" <<'PY'
+            import json
+            import os
+            import re
+            import subprocess
+            import sys
+            import time
+
+            log_path, summary_path, container_name, replica_file, label = sys.argv[1:]
+            start = time.time()
+            timeout_seconds = 90 * 60
+            event_pattern = re.compile(r"ZeroEvent:\s*(\{.*\})")
+            final_event = None
+
+            def replica_size_bytes():
+              result = subprocess.run(
+                [
+                  "docker",
+                  "exec",
+                  container_name,
+                  "sh",
+                  "-lc",
+                  f"if [ -f \"{replica_file}\" ]; then wc -c < \"{replica_file}\"; else echo 0; fi",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+              )
+              output = (result.stdout or "").strip()
+              return int(output) if output.isdigit() else 0
+
+            while time.time() - start < timeout_seconds:
+              try:
+                with open(log_path, "r", encoding="utf-8", errors="ignore") as handle:
+                  lines = handle.readlines()
+              except FileNotFoundError:
+                lines = []
+
+              for line in reversed(lines):
+                match = event_pattern.search(line)
+                if not match:
+                  continue
+                try:
+                  payload = json.loads(match.group(1))
+                except json.JSONDecodeError:
+                  continue
+                download = payload.get("state", {}).get("initialSync", {}).get("downstream", {}).get("download")
+                if not download:
+                  continue
+                if isinstance(download, dict):
+                  if all(
+                    isinstance(value, dict)
+                    and value.get("totalRows") is not None
+                    and value.get("rows") is not None
+                    and int(value["rows"]) >= int(value["totalRows"])
+                    for value in download.values()
+                  ):
+                    final_event = payload
+                    break
+              if final_event is not None:
+                break
+              time.sleep(5)
+
+            if final_event is None:
+              raise SystemExit("Timed out waiting for Zero rebuild completion")
+
+            elapsed_ms = round((time.time() - start) * 1000)
+            summary = {
+              "label": label,
+              "elapsedMs": elapsed_ms,
+              "replicaSizeBytes": replica_size_bytes(),
+              "tables": final_event["state"]["initialSync"]["downstream"]["download"],
+            }
+
+            with open(summary_path, "w", encoding="utf-8") as handle:
+              json.dump(summary, handle, indent=2)
+            print(json.dumps(summary, indent=2))
+            PY
+
+            echo "APP_PUBLIC_URL=$APP_PUBLIC_URL"
+            echo "ZERO_PUBLIC_URL=$ZERO_PUBLIC_URL"
+            echo "SUMMARY_FILE=$SUMMARY_FILE"
+            cat "$SUMMARY_FILE"
