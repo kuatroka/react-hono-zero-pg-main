@@ -64,12 +64,8 @@ jobs:
             git checkout -f "$TARGET_REF"
 
             compose config >/dev/null
-            compose build app permissions
-            compose up -d postgres
-
-            bash infra/prod/scripts/apply-postgres-bootstrap.sh "$PROD_ENV_FILE"
-            bash infra/prod/scripts/deploy-zero-permissions.sh "$PROD_ENV_FILE"
-            compose up -d app
+            compose build app
+            compose up -d postgres app
 
             compose stop zero-cache || true
             compose rm -f zero-cache || true
