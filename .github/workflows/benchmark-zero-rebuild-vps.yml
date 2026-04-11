@@ -84,9 +84,9 @@ jobs:
 
             trap cleanup EXIT
 
-            python3 - "$LOG_FILE" "$SUMMARY_FILE" "$ZERO_CONTAINER_NAME" "$ZERO_REPLICA_FILE" "$LABEL" <<'PY'
+            PYTHON_SCRIPT="/tmp/zero-rebuild-benchmark-${LABEL}.py"
+            cat >"$PYTHON_SCRIPT" <<'PY'
             import json
-            import os
             import re
             import subprocess
             import sys
@@ -133,16 +133,15 @@ jobs:
                 download = payload.get("state", {}).get("initialSync", {}).get("downstream", {}).get("download")
                 if not download:
                   continue
-                if isinstance(download, dict):
-                  if all(
-                    isinstance(value, dict)
-                    and value.get("totalRows") is not None
-                    and value.get("rows") is not None
-                    and int(value["rows"]) >= int(value["totalRows"])
-                    for value in download.values()
-                  ):
-                    final_event = payload
-                    break
+                if isinstance(download, dict) and all(
+                  isinstance(value, dict)
+                  and value.get("totalRows") is not None
+                  and value.get("rows") is not None
+                  and int(value["rows"]) >= int(value["totalRows"])
+                  for value in download.values()
+                ):
+                  final_event = payload
+                  break
               if final_event is not None:
                 break
               time.sleep(5)
@@ -162,6 +161,8 @@ jobs:
               json.dump(summary, handle, indent=2)
             print(json.dumps(summary, indent=2))
             PY
+
+            python3 "$PYTHON_SCRIPT" "$LOG_FILE" "$SUMMARY_FILE" "$ZERO_CONTAINER_NAME" "$ZERO_REPLICA_FILE" "$LABEL"
 
             echo "APP_PUBLIC_URL=$APP_PUBLIC_URL"
             echo "ZERO_PUBLIC_URL=$ZERO_PUBLIC_URL"
