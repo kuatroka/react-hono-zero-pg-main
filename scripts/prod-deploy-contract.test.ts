@@ -25,9 +25,8 @@ describe("production deploy contracts", () => {
     expect(deployScript).toContain("required_commands=(git docker curl)");
     expect(deployScript).toContain("git reset --hard HEAD");
     expect(deployScript).toContain('if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then');
-    expect(deployScript).toContain('if sudo systemctl status caddy >/dev/null 2>&1; then');
-    expect(deployScript).toContain('sudo systemctl reload caddy');
-    expect(deployScript).toContain('Skipping Caddy reload because caddy.service is unavailable.');
+    expect(deployScript).toContain('if sudo systemctl reload caddy 2>/dev/null; then');
+    expect(deployScript).toContain('Skipping Caddy reload because caddy.service is unavailable or not loaded.');
     expect(deployScript).toContain('Skipping Caddy reload because passwordless sudo is unavailable.');
   });
 

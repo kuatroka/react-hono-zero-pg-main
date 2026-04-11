@@ -45,10 +45,10 @@ compose up -d app zero-cache
 
 OUTPUT_PATH="${CADDY_SITE_PATH}" bash "$SCRIPT_DIR/render-caddyfile.sh" "$ENV_FILE"
 if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
-  if sudo systemctl status caddy >/dev/null 2>&1; then
-    sudo systemctl reload caddy
+  if sudo systemctl reload caddy 2>/dev/null; then
+    echo "Caddy reloaded."
   else
-    echo "Skipping Caddy reload because caddy.service is unavailable."
+    echo "Skipping Caddy reload because caddy.service is unavailable or not loaded."
   fi
 else
   echo "Skipping Caddy reload because passwordless sudo is unavailable."
