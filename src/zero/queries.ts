@@ -353,7 +353,7 @@ export const queries = {
 
   superinvestorsByCiks: syncedQuery(
     "superinvestors.byCiks",
-    z.tuple([z.array(z.string().min(1)).max(5000)]),
+    z.tuple([z.array(z.string().min(1)).max(400)]),
     (ciks) => {
       if (ciks.length === 0) {
         return builder.superinvestors.where("id", "=", -1);

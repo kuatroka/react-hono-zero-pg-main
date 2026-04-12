@@ -299,11 +299,11 @@ describe("performance contracts", () => {
     expect(drilldownTable).toContain("queries.investorActivityDrilldownByCusip");
     expect(drilldownTable).toContain("queries.investorActivityDrilldownByTicker");
     expect(drilldownTable).toContain("queries.investorActivityDrilldownByDetailRange");
-    expect(drilldownTable).toContain("queries.superinvestorsByCiks(ciks)");
+    expect(drilldownTable).toContain("queries.superinvestorsByCiks(padded[0])");
     expect(drilldownTable).toContain("Superinvestors who");
     expect(drilldownTable).toContain("LatencyBadge telemetry={tableTelemetry}");
     expect(drilldownTable).toContain("const [detailRows, detailResult] = useQuery(");
-    expect(drilldownTable).toContain("const [superinvestorRows, superinvestorResult] = useQuery(");
+    expect(drilldownTable).toContain("useChunkedSuperinvestorsByCiks(ciks)");
     expect(drilldownTable).toContain("LocalVirtualDataTable");
     expect(drilldownTable).not.toContain("<DataTable");
     expect(drilldownTable).toContain('className="min-w-0 h-[450px] overflow-hidden"');

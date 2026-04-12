@@ -13,6 +13,49 @@ import type { CusipQuarterInvestorActivityDetail, Superinvestor } from "@/schema
 import { PRELOAD_TTL } from "@/zero-preload";
 import { queries } from "@/zero/queries";
 
+const CIK_CHUNK_SIZE = 400;
+const MAX_CIK_CHUNKS = 5; // supports up to 2000 CIKs
+
+function useChunkedSuperinvestorsByCiks(ciks: string[]) {
+  const chunks = useMemo(() => {
+    if (ciks.length === 0) return [[]];
+    const result: string[][] = [];
+    for (let i = 0; i < ciks.length; i += CIK_CHUNK_SIZE) {
+      result.push(ciks.slice(i, i + CIK_CHUNK_SIZE));
+    }
+    return result.slice(0, MAX_CIK_CHUNKS);
+  }, [ciks]);
+
+  // Pad to fixed length so useQuery calls are always the same count
+  const padded = useMemo(
+    () => [...chunks, ...Array(Math.max(0, MAX_CIK_CHUNKS - chunks.length)).fill([] as string[])],
+    [chunks],
+  );
+
+  const [r0, q0] = useQuery(queries.superinvestorsByCiks(padded[0]), { ttl: PRELOAD_TTL });
+  const [r1, q1] = useQuery(queries.superinvestorsByCiks(padded[1]), { ttl: PRELOAD_TTL });
+  const [r2, q2] = useQuery(queries.superinvestorsByCiks(padded[2]), { ttl: PRELOAD_TTL });
+  const [r3, q3] = useQuery(queries.superinvestorsByCiks(padded[3]), { ttl: PRELOAD_TTL });
+  const [r4, q4] = useQuery(queries.superinvestorsByCiks(padded[4]), { ttl: PRELOAD_TTL });
+
+  const allRows = useMemo(
+    () => [r0, r1, r2, r3, r4].flat() as Superinvestor[],
+    [r0, r1, r2, r3, r4],
+  );
+
+  const allComplete = useMemo(() => {
+    const queryResults = [q0, q1, q2, q3, q4];
+    return queryResults.every((q) => q.type === "complete");
+  }, [q0, q1, q2, q3, q4]);
+
+  const lookup = useMemo(
+    () => new Map(allRows.map((row) => [row.cik, row] as const)),
+    [allRows],
+  );
+
+  return { lookup, isComplete: allComplete } as const;
+}
+
 interface InvestorActivityDrilldownTableProps {
   ticker: string;
   cusip: string | null;
@@ -62,17 +105,7 @@ export function InvestorActivityDrilldownTable({
       ),
     [detailRows],
   );
-  const [superinvestorRows, superinvestorResult] = useQuery(
-    queries.superinvestorsByCiks(ciks),
-    { ttl: PRELOAD_TTL },
-  );
-  const superinvestorsByCik = useMemo(
-    () => new Map(
-      (superinvestorRows as Superinvestor[])
-        .map((row) => [row.cik, row] as const),
-    ),
-    [superinvestorRows],
-  );
+  const { lookup: superinvestorsByCik, isComplete: superinvestorLookupComplete } = useChunkedSuperinvestorsByCiks(ciks);
 
   const titleAction = selection.action === "open" ? "opened" : "closed";
   const title = `Superinvestors who ${titleAction} positions in ${ticker} (${selection.quarter})`;
@@ -139,7 +172,7 @@ export function InvestorActivityDrilldownTable({
   ], []);
   const isLoading = rows.length === 0 && detailResult.type === "unknown";
   const isReady = detailResult.type === "complete"
-    && (ciks.length === 0 || superinvestorResult.type === "complete");
+    && (ciks.length === 0 || superinvestorLookupComplete);
   const latencyMs = useLatencyMs({
     isReady,
     resetKey: `${ticker}:${cusip ?? ""}:${selection.quarter}:${selection.action}:${detailRange?.minDetailId ?? 0}:${detailRange?.maxDetailId ?? 0}`,

@@ -83,6 +83,10 @@ mock.module("@rocicorp/zero/react", () => ({
     }
 
     if (query.customQueryID?.name === "superinvestors.byCiks") {
+      const args = query.customQueryID?.args?.[0] as string[] | undefined;
+      if (!args || args.length === 0) {
+        return [[], { type: "complete" }];
+      }
       return [superinvestorRows, { type: superinvestorResultType }];
     }
 
