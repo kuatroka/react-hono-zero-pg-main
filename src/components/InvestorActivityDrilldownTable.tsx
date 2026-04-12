@@ -156,8 +156,8 @@ export function InvestorActivityDrilldownTable({
   );
 
   return (
-    <Card className="min-w-0 h-[450px] overflow-hidden">
-      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+    <Card className="min-w-0 h-[450px] overflow-hidden" style={{ gap: 0, paddingTop: 0, paddingBottom: 0 }}>
+      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 px-6 pt-6 pb-2">
         <div className="space-y-1">
           <CardTitle className="text-lg font-semibold">{title}</CardTitle>
           <CardDescription>
@@ -166,7 +166,7 @@ export function InvestorActivityDrilldownTable({
         </div>
         {tableTelemetry ? <LatencyBadge telemetry={tableTelemetry} /> : null}
       </CardHeader>
-      <CardContent className="h-[calc(100%-88px)] min-h-0">
+      <CardContent className="flex-1 min-h-0 px-6 pb-6">
         <LocalVirtualDataTable<InvestorActivityDrilldownRow, "cikName">
           columns={columns}
           data={rows}

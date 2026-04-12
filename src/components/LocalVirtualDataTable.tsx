@@ -479,7 +479,7 @@ export function LocalVirtualDataTable<
   }, [focusNextRow, focusPreviousRow]);
 
   return (
-    <div className={cn("space-y-4", className)} onKeyDown={handleKeyDown}>
+    <div className={cn("h-full", className)} onKeyDown={handleKeyDown}>
       <div ref={tableContainerRef} className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-background">
         <LocalVirtualTableHeaderSearch
           placeholder={searchPlaceholder}
@@ -502,7 +502,6 @@ export function LocalVirtualDataTable<
         <div
           ref={viewportRef}
           className="min-h-0 flex-1 overflow-y-auto"
-          style={{ height: viewportHeight }}
           onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
         >
           {sortedRows.length === 0 ? (

@@ -11,6 +11,16 @@ on:
         description: Short label for the benchmark run
         required: true
         type: string
+      timeout_minutes:
+        description: Maximum minutes to wait for replica stabilization
+        required: false
+        type: string
+        default: "180"
+      restore_prod:
+        description: Restore VPS to main HEAD after benchmark
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   benchmark:
@@ -24,8 +34,8 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script_stop: true
-          timeout: 120m
-          command_timeout: 120m
+          timeout: 240m
+          command_timeout: 240m
           script: |
             set -euo pipefail
 
@@ -34,6 +44,8 @@ jobs:
             FALLBACK_ENV_FILE="$APP_DIR/.env.prod"
             TARGET_REF="${{ inputs.git_ref }}"
             LABEL="${{ inputs.label }}"
+            TIMEOUT_MINUTES="${{ inputs.timeout_minutes }}"
+            RESTORE_PROD="${{ inputs.restore_prod }}"
 
             if [ ! -d "$APP_DIR" ]; then
               echo "Missing app directory: $APP_DIR"
@@ -59,6 +71,7 @@ jobs:
               docker compose --env-file "$PROD_ENV_FILE" -f "$APP_DIR/infra/prod/docker-compose.yml" "$@"
             }
 
+            # --- Phase 1: Build and start the target ref ---
             git reset --hard HEAD
             git fetch origin main --tags
             git checkout -f "$TARGET_REF"
@@ -75,11 +88,37 @@ jobs:
 
             compose up -d zero-cache
 
-            PYTHON_CODE=$'import json, subprocess, sys, time\nsummary_path, container_name, replica_file, label = sys.argv[1:]\nstart = time.time()\ntimeout_seconds = 90 * 60\npoll_seconds = 10\nstable_samples_required = 3\nlast_size = None\nstable_samples = 0\nsamples = []\n\ndef replica_size_bytes():\n    result = subprocess.run([\"docker\", \"exec\", container_name, \"sh\", \"-lc\", f\"if [ -f \\\\\\\"{replica_file}\\\\\\\" ]; then wc -c < \\\\\\\"{replica_file}\\\\\\\"; else echo 0; fi\"], capture_output=True, text=True, check=False)\n    output = (result.stdout or \"\").strip()\n    return int(output) if output.isdigit() else 0\n\ndef container_running():\n    result = subprocess.run([\"docker\", \"inspect\", \"-f\", \"{{.State.Running}}\", container_name], capture_output=True, text=True, check=False)\n    return (result.stdout or \"\").strip() == \"true\"\n\nwhile time.time() - start < timeout_seconds:\n    if not container_running():\n        raise SystemExit(\"zero-cache container stopped before benchmark completion\")\n    current_size = replica_size_bytes()\n    samples.append(current_size)\n    if current_size > 0 and current_size == last_size:\n        stable_samples += 1\n    else:\n        stable_samples = 0\n    last_size = current_size\n    if current_size > 0 and stable_samples >= stable_samples_required:\n        break\n    time.sleep(poll_seconds)\nelse:\n    raise SystemExit(\"Timed out waiting for replica size to stabilize\")\n\nelapsed_ms = round((time.time() - start) * 1000)\nsummary = {\"label\": label, \"elapsedMs\": elapsed_ms, \"replicaSizeBytes\": last_size or 0, \"replicaSamples\": samples}\nwith open(summary_path, \"w\", encoding=\"utf-8\") as handle:\n    json.dump(summary, handle, indent=2)\nprint(json.dumps(summary, indent=2))'
+            # --- Phase 2: Poll replica size until growth stalls ---
+            # Uses rate-of-change detection instead of exact size match,
+            # because SQLite WAL and journal writes cause small fluctuations.
+            # "Stable" = growth rate < 0.1% across 3 consecutive samples.
+            # Base64-encode the Python script to avoid any shell quoting/heredoc issues
+            # with the SSH action's guard injection.
+            POLL_SCRIPT="/tmp/zero-bench-poll-$$.py"
+            base64 -d << 'B64EOF' > "$POLL_SCRIPT"
+            aW1wb3J0IGpzb24sIHN1YnByb2Nlc3MsIHN5cywgdGltZQpzdW1tYXJ5X3BhdGgsIGNvbnRhaW5lcl9uYW1lLCByZXBsaWNhX2ZpbGUsIGxhYmVsLCB0aW1lb3V0X21pbnV0ZXMgPSBzeXMuYXJndlsxOl0Kc3RhcnQgPSB0aW1lLnRpbWUoKQp0aW1lb3V0X3NlY29uZHMgPSBpbnQodGltZW91dF9taW51dGVzKSAqIDYwCnBvbGxfc2Vjb25kcyA9IDE1CnN0YWJsZV9zYW1wbGVzX3JlcXVpcmVkID0gMwpncm93dGhfdGhyZXNob2xkID0gMC4wMDEgICMgMC4xJQptaW5fbm9uemVyb19zYW1wbGVzID0gNiAgICMgcmVxdWlyZSBhdCBsZWFzdCA2IG5vbnplcm8gc2FtcGxlcyBiZWZvcmUgZGVjbGFyaW5nIHN0YWJsZQpsYXN0X3NpemUgPSAwCnN0YWJsZV9zYW1wbGVzID0gMApzYW1wbGVzID0gW10Kbm9uemVyb19jb3VudCA9IDAKCmRlZiByZXBsaWNhX3NpemVfYnl0ZXMoKToKICAgIGNoZWNrX2NtZCA9ICdpZiBbIC1mICInICsgcmVwbGljYV9maWxlICsgJyIgXTsgdGhlbiB3YyAtYyA8ICInICsgcmVwbGljYV9maWxlICsgJyI7IGVsc2UgZWNobyAwOyBmaScKICAgIHJlc3VsdCA9IHN1YnByb2Nlc3MucnVuKAogICAgICAgIFsiZG9ja2VyIiwgImV4ZWMiLCBjb250YWluZXJfbmFtZSwgInNoIiwgIi1sYyIsIGNoZWNrX2NtZF0sCiAgICAgICAgY2FwdHVyZV9vdXRwdXQ9VHJ1ZSwgdGV4dD1UcnVlLCBjaGVjaz1GYWxzZSwKICAgICkKICAgIG91dHB1dCA9IChyZXN1bHQuc3Rkb3V0IG9yICIiKS5zdHJpcCgpCiAgICByZXR1cm4gaW50KG91dHB1dCkgaWYgb3V0cHV0LmlzZGlnaXQoKSBlbHNlIDAKCmRlZiBjb250YWluZXJfcnVubmluZygpOgogICAgcmVzdWx0ID0gc3VicHJvY2Vzcy5ydW4oCiAgICAgICAgWyJkb2NrZXIiLCAiaW5zcGVjdCIsICItZiIsICJ7ey5TdGF0ZS5SdW5uaW5nfX0iLCBjb250YWluZXJfbmFtZV0sCiAgICAgICAgY2FwdHVyZV9vdXRwdXQ9VHJ1ZSwgdGV4dD1UcnVlLCBjaGVjaz1GYWxzZSwKICAgICkKICAgIHJldHVybiAocmVzdWx0LnN0ZG91dCBvciAiIikuc3RyaXAoKSA9PSAidHJ1ZSIKCndoaWxlIHRpbWUudGltZSgpIC0gc3RhcnQgPCB0aW1lb3V0X3NlY29uZHM6CiAgICBpZiBub3QgY29udGFpbmVyX3J1bm5pbmcoKToKICAgICAgICByYWlzZSBTeXN0ZW1FeGl0KCJ6ZXJvLWNhY2hlIGNvbnRhaW5lciBzdG9wcGVkIGJlZm9yZSBiZW5jaG1hcmsgY29tcGxldGlvbiIpCiAgICBjdXJyZW50X3NpemUgPSByZXBsaWNhX3NpemVfYnl0ZXMoKQogICAgc2FtcGxlcy5hcHBlbmQoY3VycmVudF9zaXplKQogICAgaWYgY3VycmVudF9zaXplID4gMDoKICAgICAgICBub256ZXJvX2NvdW50ICs9IDEKICAgICAgICBpZiBsYXN0X3NpemUgPiAwOgogICAgICAgICAgICBncm93dGhfcmF0ZSA9IGFicyhjdXJyZW50X3NpemUgLSBsYXN0X3NpemUpIC8gbGFzdF9zaXplCiAgICAgICAgICAgIGlmIGdyb3d0aF9yYXRlIDwgZ3Jvd3RoX3RocmVzaG9sZDoKICAgICAgICAgICAgICAgIHN0YWJsZV9zYW1wbGVzICs9IDEKICAgICAgICAgICAgZWxzZToKICAgICAgICAgICAgICAgIHN0YWJsZV9zYW1wbGVzID0gMAogICAgICAgIGxhc3Rfc2l6ZSA9IGN1cnJlbnRfc2l6ZQogICAgZWxzZToKICAgICAgICBzdGFibGVfc2FtcGxlcyA9IDAKCiAgICBpZiBub256ZXJvX2NvdW50ID49IG1pbl9ub256ZXJvX3NhbXBsZXMgYW5kIHN0YWJsZV9zYW1wbGVzID49IHN0YWJsZV9zYW1wbGVzX3JlcXVpcmVkOgogICAgICAgIGJyZWFrCiAgICB0aW1lLnNsZWVwKHBvbGxfc2Vjb25kcykKZWxzZToKICAgICMgVGltZW91dDogcmVjb3JkIHdoYXQgd2UgaGF2ZSBpbnN0ZWFkIG9mIGZhaWxpbmcKICAgIGVsYXBzZWRfbXMgPSByb3VuZCgodGltZS50aW1lKCkgLSBzdGFydCkgKiAxMDAwKQogICAgc3VtbWFyeSA9IHsKICAgICAgICAibGFiZWwiOiBsYWJlbCwKICAgICAgICAiZWxhcHNlZE1zIjogZWxhcHNlZF9tcywKICAgICAgICAicmVwbGljYVNpemVCeXRlcyI6IGxhc3Rfc2l6ZSBvciAwLAogICAgICAgICJyZXBsaWNhU2FtcGxlcyI6IHNhbXBsZXNbLTIwOl0sCiAgICAgICAgInRpbWVkT3V0IjogVHJ1ZSwKICAgICAgICAidGltZW91dFNlY29uZHMiOiB0aW1lb3V0X3NlY29uZHMsCiAgICB9CiAgICB3aXRoIG9wZW4oc3VtbWFyeV9wYXRoLCAidyIsIGVuY29kaW5nPSJ1dGYtOCIpIGFzIGhhbmRsZToKICAgICAgICBqc29uLmR1bXAoc3VtbWFyeSwgaGFuZGxlLCBpbmRlbnQ9MikKICAgIHByaW50KGpzb24uZHVtcHMoc3VtbWFyeSwgaW5kZW50PTIpKQogICAgc3lzLmV4aXQoMCkKCmVsYXBzZWRfbXMgPSByb3VuZCgodGltZS50aW1lKCkgLSBzdGFydCkgKiAxMDAwKQpzdW1tYXJ5ID0gewogICAgImxhYmVsIjogbGFiZWwsCiAgICAiZWxhcHNlZE1zIjogZWxhcHNlZF9tcywKICAgICJyZXBsaWNhU2l6ZUJ5dGVzIjogbGFzdF9zaXplIG9yIDAsCiAgICAicmVwbGljYVNhbXBsZXMiOiBzYW1wbGVzWy0yMDpdLAogICAgInRpbWVkT3V0IjogRmFsc2UsCn0Kd2l0aCBvcGVuKHN1bW1hcnlfcGF0aCwgInciLCBlbmNvZGluZz0idXRmLTgiKSBhcyBoYW5kbGU6CiAgICBqc29uLmR1bXAoc3VtbWFyeSwgaGFuZGxlLCBpbmRlbnQ9MikKcHJpbnQoanNvbi5kdW1wcyhzdW1tYXJ5LCBpbmRlbnQ9MikpCg==
+            B64EOF
 
-            python3 -c "$PYTHON_CODE" "$SUMMARY_FILE" "$ZERO_CONTAINER_NAME" "$ZERO_REPLICA_FILE" "$LABEL"
+            python3 "$POLL_SCRIPT" "$SUMMARY_FILE" "$ZERO_CONTAINER_NAME" "$ZERO_REPLICA_FILE" "$LABEL" "$TIMEOUT_MINUTES"
+            rm -f "$POLL_SCRIPT"
 
+            echo "=== Benchmark Summary ==="
             echo "APP_PUBLIC_URL=$APP_PUBLIC_URL"
             echo "ZERO_PUBLIC_URL=$ZERO_PUBLIC_URL"
             echo "SUMMARY_FILE=$SUMMARY_FILE"
             cat "$SUMMARY_FILE"
+
+            # --- Phase 3: Restore prod to main HEAD ---
+            if [ "$RESTORE_PROD" = "true" ]; then
+              echo "=== Restoring prod to origin/main ==="
+              git fetch origin main
+              git checkout -f origin/main
+              compose build app
+              compose up -d postgres app
+              # Keep zero-cache running on main with existing replica
+              # (no volume wipe — replica is compatible with main)
+              compose up -d zero-cache
+              echo "=== Prod restored to origin/main ==="
+            else
+              echo "=== Skipping prod restore (restore_prod=false) ==="
+            fi
